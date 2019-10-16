@@ -659,12 +659,14 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * <ol>
    * <li>Initialize master components - file system manager, server manager,
    *     assignment manager, region server tracker, etc</li>
+   * <li>初始化master组件，file manager, server manager, assignment manager, region tracker等</li>
    * <li>Start necessary service threads - balancer, catalog janior,
    *     executor services, etc</li>
+   * <li>开启必要的服务，balancer, catalog janior, excutor服务等</li>
    * <li>Set cluster as UP in ZooKeeper</li>
    * <li>Wait for RegionServers to check-in</li>
    * <li>Split logs and perform data recovery, if necessary</li>
-   * <li>Ensure assignment of meta/namespace regions<li>
+   * <li>Ensure assignment of meta/namespace regions</li>
    * <li>Handle either fresh cluster start or master failover</li>
    * </ol>
    *
@@ -729,8 +731,11 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     sleeper.skipSleepCycle();
 
     // Wait for region servers to report in
+    // 等待regionserver的注册
     this.serverManager.waitForRegionServers(status);
+
     // Check zk for region servers that are up but didn't register
+    // 检查在zk中注册，还没有链接master的节点
     for (ServerName sn: this.regionServerTracker.getOnlineServers()) {
       // The isServerOnline check is opportunistic, correctness is handled inside
       if (!this.serverManager.isServerOnline(sn)
@@ -2528,6 +2533,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
   }
 
   /**
+   * HMaster的入口
    * @see org.apache.hadoop.hbase.master.HMasterCommandLine
    */
   public static void main(String [] args) {

@@ -24,6 +24,9 @@
 # Run this on master node.
 usage="Usage: start-hbase.sh"
 
+
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_144.jdk/Contents/Home
+
 bin=`dirname "${BASH_SOURCE-$0}"`
 bin=`cd "$bin">/dev/null; pwd`
 
@@ -47,9 +50,17 @@ fi
 # HBASE-6504 - only take the first line of the output in case verbose gc is on
 distMode=`$bin/hbase --config "$HBASE_CONF_DIR" org.apache.hadoop.hbase.util.HBaseConfTool hbase.cluster.distributed | head -n 1`
 
+echo 'distMode'
+echo $distMode
 
 if [ "$distMode" == 'false' ] 
 then
+    echo ${HBASE_CONF_DIR}
+    echo $commandToRun
+    echo $@
+
+    # $bin"/hbase-daemon.sh --config "/Users/xingoo/Documents/source/hbase/bin/../conf" start master
+
   "$bin"/hbase-daemon.sh --config "${HBASE_CONF_DIR}" $commandToRun master $@
 else
   "$bin"/hbase-daemons.sh --config "${HBASE_CONF_DIR}" $commandToRun zookeeper

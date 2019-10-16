@@ -21,4 +21,12 @@
  */
 -->
 <configuration>
+    <property>
+        <name>hbase.rootdir</name>
+        <value>file:///Users/xingoo/Documents/source/hbase/data/hbase</value>
+    </property>
+    <property>
+        <name>hbase.zookeeper.property.dataDir</name>
+        <value>/Users/xingoo/Documents/source/hbase/data/zookeeper</value>
+    </property>
 </configuration>

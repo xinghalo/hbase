@@ -26,6 +26,8 @@
 # The java implementation to use.  Java 1.7+ required.
 # export JAVA_HOME=/usr/java/jdk1.6.0/
 
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_144.jdk/Contents/Home
+
 # Extra Java CLASSPATH elements.  Optional.
 # export HBASE_CLASSPATH=
 
