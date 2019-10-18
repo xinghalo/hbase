@@ -1075,14 +1075,16 @@ public class RegionStates {
    *
    * @return A clone of current assignments by table.
    */
-  protected Map<TableName, Map<ServerName, List<HRegionInfo>>>
-      getAssignmentsByTable() {
-    Map<TableName, Map<ServerName, List<HRegionInfo>>> result =
-      new HashMap<TableName, Map<ServerName,List<HRegionInfo>>>();
+  protected Map<TableName, Map<ServerName, List<HRegionInfo>>> getAssignmentsByTable() {
+
+    Map<TableName, Map<ServerName, List<HRegionInfo>>> result = new HashMap<TableName, Map<ServerName,List<HRegionInfo>>>();
+
+    // 形成<table,<server,regioninfo>>的格式
     synchronized (this) {
+      // 是否按照表进行负载均衡，如果不按照表负载，则统一放在ensemble中
       if (!server.getConfiguration().getBoolean("hbase.master.loadbalance.bytable", false)) {
-        Map<ServerName, List<HRegionInfo>> svrToRegions =
-          new HashMap<ServerName, List<HRegionInfo>>(serverHoldings.size());
+        //TODO 这个serverHoldings是怎么来的
+        Map<ServerName, List<HRegionInfo>> svrToRegions = new HashMap<ServerName, List<HRegionInfo>>(serverHoldings.size());
         for (Map.Entry<ServerName, Set<HRegionInfo>> e: serverHoldings.entrySet()) {
           svrToRegions.put(e.getKey(), new ArrayList<HRegionInfo>(e.getValue()));
         }
@@ -1108,10 +1110,11 @@ public class RegionStates {
       }
     }
 
-    Map<ServerName, ServerLoad>
-      onlineSvrs = serverManager.getOnlineServers();
+    Map<ServerName, ServerLoad> onlineSvrs = serverManager.getOnlineServers();
     // Take care of servers w/o assignments, and remove servers in draining mode
     List<ServerName> drainingServers = this.serverManager.getDrainingServersList();
+
+    // 清空离线的节点信息
     for (Map<ServerName, List<HRegionInfo>> map: result.values()) {
       for (ServerName svr: onlineSvrs.keySet()) {
         if (!map.containsKey(svr)) {

@@ -263,13 +263,23 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
 
   // Metrics for the HMaster
   final MetricsMaster metricsMaster;
-  // file system manager for the master FS operations
+
+  /**
+   * file system manager for the master FS operations
+   * 专门负责master与hdfs交互
+   */
   private MasterFileSystem fileSystemManager;
 
-  // server manager to deal with region server info
+  /**
+   * server manager to deal with region server info
+   * 专门负责region的管理
+   */
   volatile ServerManager serverManager;
 
-  // manager of assignment nodes in zookeeper
+  /**
+   * manager of assignment nodes in zookeeper
+   * 负责zk中节点的管理
+   */
   AssignmentManager assignmentManager;
 
   // buffer for "fatal error" notices from region servers
@@ -292,6 +302,9 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
   private final ProcedureEvent serverCrashProcessingEnabled =
     new ProcedureEvent("server crash processing");
 
+  /**
+   * Region的负载均衡
+   */
   LoadBalancer balancer;
   private RegionNormalizer normalizer;
   private BalancerChore balancerChore;
@@ -320,9 +333,14 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
 
   Map<String, Service> coprocessorServiceHandlers = Maps.newHashMap();
 
-  // monitor for snapshot of hbase tables
+  /**
+   * monitor for snapshot of hbase tables
+   */
   SnapshotManager snapshotManager;
-  // monitor for distributed procedures
+
+  /**
+   * monitor for distributed procedures
+   */
   MasterProcedureManagerHost mpmHost;
 
   // it is assigned after 'initialized' guard set to true, so should be volatile
@@ -408,11 +426,9 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * @throws KeeperException
    * @throws IOException
    */
-  public HMaster(final Configuration conf, CoordinatedStateManager csm)
-      throws IOException, KeeperException, InterruptedException {
+  public HMaster(final Configuration conf, CoordinatedStateManager csm) throws IOException, KeeperException, InterruptedException {
     super(conf, csm);
-    this.rsFatals = new MemoryBoundedLogMessageBuffer(
-      conf.getLong("hbase.master.buffer.for.rs.fatals", 1*1024*1024));
+    this.rsFatals = new MemoryBoundedLogMessageBuffer(conf.getLong("hbase.master.buffer.for.rs.fatals", 1*1024*1024));
 
     LOG.info("hbase.rootdir=" + getRootDir() +
       ", hbase.cluster.distributed=" + this.conf.getBoolean(HConstants.CLUSTER_DISTRIBUTED, false));
@@ -440,9 +456,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     this.preLoadTableDescriptors = conf.getBoolean("hbase.master.preload.tabledescriptors", true);
 
     // Do we publish the status?
-
-    boolean shouldPublish = conf.getBoolean(HConstants.STATUS_PUBLISHED,
-        HConstants.STATUS_PUBLISHED_DEFAULT);
+    boolean shouldPublish = conf.getBoolean(HConstants.STATUS_PUBLISHED, HConstants.STATUS_PUBLISHED_DEFAULT);
     Class<? extends ClusterStatusPublisher.Publisher> publisherClass =
         conf.getClass(ClusterStatusPublisher.STATUS_PUBLISHER_CLASS,
             ClusterStatusPublisher.DEFAULT_STATUS_PUBLISHER_CLASS,
@@ -460,9 +474,13 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     }
 
     // Some unit tests don't need a cluster, so no zookeeper at all
+    // 默认需要启动集群
     if (!conf.getBoolean("hbase.testing.nocluster", false)) {
+
+      // 创建主节点master管理器，用于进行master选举（基于zk看哪个先注册成为Master）
       activeMasterManager = new ActiveMasterManager(zooKeeper, this.serverName, this);
       int infoPort = putUpJettyServer();
+      // 启动激活master
       startActiveMasterManager(infoPort);
     } else {
       activeMasterManager = null;
@@ -612,8 +630,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * @throws KeeperException
    * @throws CoordinatedStateException
    */
-  void initializeZKBasedSystemTrackers() throws IOException,
-      InterruptedException, KeeperException, CoordinatedStateException {
+  void initializeZKBasedSystemTrackers() throws IOException, InterruptedException, KeeperException, CoordinatedStateException {
     this.balancer = LoadBalancerFactory.getLoadBalancer(conf);
     this.normalizer = RegionNormalizerFactory.getRegionNormalizer(conf);
     this.normalizer.setMasterServices(this);
@@ -621,17 +638,11 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     this.loadBalancerTracker.start();
     this.regionNormalizerTracker = new RegionNormalizerTracker(zooKeeper, this);
     this.regionNormalizerTracker.start();
-    this.assignmentManager = new AssignmentManager(this, serverManager,
-      this.balancer, this.service, this.metricsMaster,
-      this.tableLockManager);
+    this.assignmentManager = new AssignmentManager(this, serverManager, this.balancer, this.service, this.metricsMaster, this.tableLockManager);
     zooKeeper.registerListenerFirst(assignmentManager);
-
-    this.regionServerTracker = new RegionServerTracker(zooKeeper, this,
-        this.serverManager);
+    this.regionServerTracker = new RegionServerTracker(zooKeeper, this, this.serverManager);
     this.regionServerTracker.start();
-
-    this.drainingServerTracker = new DrainingServerTracker(zooKeeper, this,
-      this.serverManager);
+    this.drainingServerTracker = new DrainingServerTracker(zooKeeper, this, this.serverManager);
     this.drainingServerTracker.start();
 
     // Set the cluster as up.  If new RSs, they'll be waiting on this before
@@ -639,10 +650,8 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     boolean wasUp = this.clusterStatusTracker.isClusterUp();
     if (!wasUp) this.clusterStatusTracker.setClusterUp();
 
-    LOG.info("Server active/primary master=" + this.serverName +
-        ", sessionid=0x" +
-        Long.toHexString(this.zooKeeper.getRecoverableZooKeeper().getSessionId()) +
-        ", setting cluster-up flag (Was=" + wasUp + ")");
+    LOG.info("Server active/primary master=" + this.serverName + ", sessionid=0x" +
+        Long.toHexString(this.zooKeeper.getRecoverableZooKeeper().getSessionId()) + ", setting cluster-up flag (Was=" + wasUp + ")");
 
     // create/initialize the snapshot manager and other procedure managers
     this.snapshotManager = new SnapshotManager();
@@ -657,12 +666,8 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * Finish initialization of HMaster after becoming the primary master.
    *
    * <ol>
-   * <li>Initialize master components - file system manager, server manager,
-   *     assignment manager, region server tracker, etc</li>
-   * <li>初始化master组件，file manager, server manager, assignment manager, region tracker等</li>
-   * <li>Start necessary service threads - balancer, catalog janior,
-   *     executor services, etc</li>
-   * <li>开启必要的服务，balancer, catalog janior, excutor服务等</li>
+   * <li>Initialize master components - file system manager, server manager, assignment manager, region server tracker, etc</li>
+   * <li>Start necessary service threads - balancer, catalog janior, executor services, etc</li>
    * <li>Set cluster as UP in ZooKeeper</li>
    * <li>Wait for RegionServers to check-in</li>
    * <li>Split logs and perform data recovery, if necessary</li>
@@ -675,31 +680,33 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * @throws KeeperException
    * @throws CoordinatedStateException
    */
-  private void finishActiveMasterInitialization(MonitoredTask status)
-      throws IOException, InterruptedException, KeeperException, CoordinatedStateException {
+  private void finishActiveMasterInitialization(MonitoredTask status) throws IOException, InterruptedException, KeeperException, CoordinatedStateException {
 
     isActiveMaster = true;
-    Thread zombieDetector = new Thread(new InitializationMonitor(this),
-        "ActiveMasterInitializationMonitor-" + System.currentTimeMillis());
+
+    // 创建启动监控进程，主要用于监控master初始化是否完成。如果完成，则输出日志；如果未完成，则输出对应的thread-dump，查看线程死锁情况
+    Thread zombieDetector = new Thread(new InitializationMonitor(this),"ActiveMasterInitializationMonitor-" + System.currentTimeMillis());
     zombieDetector.start();
 
     /*
      * We are active master now... go initialize components we need to run.
-     * Note, there may be dross in zk from previous runs; it'll get addressed
-     * below after we determine if cluster startup or failover.
+     * Note, there may be dross in zk from previous runs; it'll get addressed below after we determine if cluster startup or failover.
      */
 
     status.setStatus("Initializing Master file system");
 
     this.masterActiveTime = System.currentTimeMillis();
-    // TODO: Do this using Dependency Injection, using PicoContainer, Guice or Spring.
+
+    // 创建文件管理器
     this.fileSystemManager = new MasterFileSystem(this, this);
 
     // enable table descriptors cache
+    // 开启缓存
     this.tableDescriptors.setCacheOn();
+
     // set the META's descriptor to the correct replication
-    this.tableDescriptors.get(TableName.META_TABLE_NAME).setRegionReplication(
-        conf.getInt(HConstants.META_REPLICAS_NUM, HConstants.DEFAULT_META_REPLICA_NUM));
+    this.tableDescriptors.get(TableName.META_TABLE_NAME).setRegionReplication(conf.getInt(HConstants.META_REPLICAS_NUM, HConstants.DEFAULT_META_REPLICA_NUM));
+
     // warm-up HTDs cache on master initialization
     if (preLoadTableDescriptors) {
       status.setStatus("Pre-loading table descriptors");
@@ -747,10 +754,10 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     // get a list for previously failed RS which need log splitting work
     // we recover hbase:meta region servers inside master initialization and
     // handle other failed servers in SSH in order to start up master node ASAP
-    Set<ServerName> previouslyFailedServers =
-      this.fileSystemManager.getFailedServersFromLogFolders();
+    Set<ServerName> previouslyFailedServers = this.fileSystemManager.getFailedServersFromLogFolders();
 
     // log splitting for hbase:meta server
+    // 获得hbase:meta所在的机器
     ServerName oldMetaServerLocation = metaTableLocator.getMetaRegionLocation(this.getZooKeeper());
     if (oldMetaServerLocation != null && previouslyFailedServers.contains(oldMetaServerLocation)) {
       splitMetaLogBeforeAssignment(oldMetaServerLocation);
@@ -849,8 +856,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
 
     // assign the meta replicas
     Set<ServerName> EMPTY_SET = new HashSet<ServerName>();
-    int numReplicas = conf.getInt(HConstants.META_REPLICAS_NUM,
-           HConstants.DEFAULT_META_REPLICA_NUM);
+    int numReplicas = conf.getInt(HConstants.META_REPLICAS_NUM, HConstants.DEFAULT_META_REPLICA_NUM);
     for (int i = 1; i < numReplicas; i++) {
       assignMeta(status, EMPTY_SET, i);
     }
@@ -1127,16 +1133,11 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    */
   private void startServiceThreads() throws IOException{
    // Start the executor service pools
-   this.service.startExecutorService(ExecutorType.MASTER_OPEN_REGION,
-      conf.getInt("hbase.master.executor.openregion.threads", 5));
-   this.service.startExecutorService(ExecutorType.MASTER_CLOSE_REGION,
-      conf.getInt("hbase.master.executor.closeregion.threads", 5));
-   this.service.startExecutorService(ExecutorType.MASTER_SERVER_OPERATIONS,
-      conf.getInt("hbase.master.executor.serverops.threads", 5));
-   this.service.startExecutorService(ExecutorType.MASTER_META_SERVER_OPERATIONS,
-      conf.getInt("hbase.master.executor.serverops.threads", 5));
-   this.service.startExecutorService(ExecutorType.M_LOG_REPLAY_OPS,
-      conf.getInt("hbase.master.executor.logreplayops.threads", 10));
+   this.service.startExecutorService(ExecutorType.MASTER_OPEN_REGION, conf.getInt("hbase.master.executor.openregion.threads", 5));
+   this.service.startExecutorService(ExecutorType.MASTER_CLOSE_REGION, conf.getInt("hbase.master.executor.closeregion.threads", 5));
+   this.service.startExecutorService(ExecutorType.MASTER_SERVER_OPERATIONS, conf.getInt("hbase.master.executor.serverops.threads", 5));
+   this.service.startExecutorService(ExecutorType.MASTER_META_SERVER_OPERATIONS, conf.getInt("hbase.master.executor.serverops.threads", 5));
+   this.service.startExecutorService(ExecutorType.M_LOG_REPLAY_OPS, conf.getInt("hbase.master.executor.logreplayops.threads", 10));
 
    // We depend on there being only one instance of this executor running
    // at a time.  To do concurrency, would need fencing of enable/disable of
@@ -1148,18 +1149,14 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
 
    // Start log cleaner thread
    int cleanerInterval = conf.getInt("hbase.master.cleaner.interval", 60 * 1000);
-   this.logCleaner =
-      new LogCleaner(cleanerInterval,
-         this, conf, getMasterFileSystem().getFileSystem(),
-         getMasterFileSystem().getOldLogDir());
+   this.logCleaner = new LogCleaner(cleanerInterval, this, conf, getMasterFileSystem().getFileSystem(), getMasterFileSystem().getOldLogDir());
     getChoreService().scheduleChore(logCleaner);
 
    //start the hfile archive cleaner thread
     Path archiveDir = HFileArchiveUtil.getArchivePath(conf);
     Map<String, Object> params = new HashMap<String, Object>();
     params.put(MASTER, this);
-    this.hfileCleaner = new HFileCleaner(cleanerInterval, this, conf, getMasterFileSystem()
-        .getFileSystem(), archiveDir, params);
+    this.hfileCleaner = new HFileCleaner(cleanerInterval, this, conf, getMasterFileSystem().getFileSystem(), archiveDir, params);
     getChoreService().scheduleChore(hfileCleaner);
     serviceStarted = true;
     if (LOG.isTraceEnabled()) {
@@ -1167,8 +1164,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     }
     if (!conf.getBoolean(HConstants.ZOOKEEPER_USEMULTI, true)) {
       try {
-        replicationZKLockCleanerChore = new ReplicationZKLockCleanerChore(this, this,
-            cleanerInterval, this.getZooKeeper(), this.conf);
+        replicationZKLockCleanerChore = new ReplicationZKLockCleanerChore(this, this, cleanerInterval, this.getZooKeeper(), this.conf);
         getChoreService().scheduleChore(replicationZKLockCleanerChore);
       } catch (Exception e) {
         LOG.error("start replicationZKLockCleanerChore failed", e);
@@ -1319,11 +1315,9 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
       if (!this.loadBalancerTracker.isBalancerOn()) return false;
       // Only allow one balance run at at time.
       if (this.assignmentManager.getRegionStates().isRegionsInTransition()) {
-        Map<String, RegionState> regionsInTransition =
-          this.assignmentManager.getRegionStates().getRegionsInTransition();
-        LOG.debug("Not running balancer because " + regionsInTransition.size() +
-          " region(s) in transition: " + org.apache.commons.lang.StringUtils.
-            abbreviate(regionsInTransition.toString(), 256));
+        Map<String, RegionState> regionsInTransition = this.assignmentManager.getRegionStates().getRegionsInTransition();
+        LOG.debug("Not running balancer because " + regionsInTransition.size() + " region(s) in transition: "
+                + org.apache.commons.lang.StringUtils.abbreviate(regionsInTransition.toString(), 256));
         return false;
       }
       if (this.serverManager.areDeadServersInProgress()) {
@@ -1344,8 +1338,8 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
         }
       }
 
-      Map<TableName, Map<ServerName, List<HRegionInfo>>> assignmentsByTable =
-        this.assignmentManager.getRegionStates().getAssignmentsByTable();
+      // 获取集群当前的region的信息
+      Map<TableName, Map<ServerName, List<HRegionInfo>>> assignmentsByTable = this.assignmentManager.getRegionStates().getAssignmentsByTable();
 
       List<RegionPlan> plans = new ArrayList<RegionPlan>();
       //Give the balancer the current cluster state.
@@ -1354,6 +1348,7 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
         List<RegionPlan> partialPlans = this.balancer.balanceCluster(assignments);
         if (partialPlans != null) plans.addAll(partialPlans);
       }
+
       long cutoffTime = System.currentTimeMillis() + maximumBalanceTime;
       int rpCount = 0;  // number of RegionPlans balanced so far
       long totalRegPlanExecTime = 0;
@@ -1365,12 +1360,12 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
           this.assignmentManager.balance(plan);
           totalRegPlanExecTime += System.currentTimeMillis()-balStartTime;
           rpCount++;
+
           if (rpCount < plans.size() &&
               // if performing next balance exceeds cutoff time, exit the loop
               (System.currentTimeMillis() + (totalRegPlanExecTime / rpCount)) > cutoffTime) {
             //TODO: After balance, there should not be a cutoff time (keeping it as a security net for now)
-            LOG.debug("No more balancing till next balance run; maximumBalanceTime=" +
-              maximumBalanceTime);
+            LOG.debug("No more balancing till next balance run; maximumBalanceTime=" + maximumBalanceTime);
             break;
           }
         }
@@ -1771,8 +1766,8 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
   }
 
   private void startActiveMasterManager(int infoPort) throws KeeperException {
-    String backupZNode = ZKUtil.joinZNode(
-      zooKeeper.backupMasterAddressesZNode, serverName.toString());
+    // 注册到backup
+    String backupZNode = ZKUtil.joinZNode(zooKeeper.backupMasterAddressesZNode, serverName.toString());
     /*
     * Add a ZNode for ourselves in the backup master directory since we
     * may not become the active master. If so, we want the actual active
@@ -1784,34 +1779,34 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
     * this node for us since it is ephemeral.
     */
     LOG.info("Adding backup master ZNode " + backupZNode);
-    if (!MasterAddressTracker.setMasterAddress(zooKeeper, backupZNode,
-        serverName, infoPort)) {
+    if (!MasterAddressTracker.setMasterAddress(zooKeeper, backupZNode,serverName, infoPort)) {
       LOG.warn("Failed create of " + backupZNode + " by " + serverName);
     }
 
     activeMasterManager.setInfoPort(infoPort);
+
     // Start a thread to try to become the active master, so we won't block here
+    // 创建并启动master线程
     Threads.setDaemonThreadRunning(new Thread(new Runnable() {
       @Override
       public void run() {
-        int timeout = conf.getInt(HConstants.ZK_SESSION_TIMEOUT,
-          HConstants.DEFAULT_ZK_SESSION_TIMEOUT);
+        // 超时时间 zookeeper.session.timeout ，默认180s
+        int timeout = conf.getInt(HConstants.ZK_SESSION_TIMEOUT, HConstants.DEFAULT_ZK_SESSION_TIMEOUT);
         // If we're a backup master, stall until a primary to writes his address
-        if (conf.getBoolean(HConstants.MASTER_TYPE_BACKUP,
-          HConstants.DEFAULT_MASTER_TYPE_BACKUP)) {
-          LOG.debug("HMaster started in backup mode. "
-            + "Stalling until master znode is written.");
+        if (conf.getBoolean(HConstants.MASTER_TYPE_BACKUP, HConstants.DEFAULT_MASTER_TYPE_BACKUP)) {
+          LOG.debug("HMaster started in backup mode. Stalling until master znode is written.");
           // This will only be a minute or so while the cluster starts up,
           // so don't worry about setting watches on the parent znode
+          // 当为备份时，监听cluster是否有存活的master，有的话就睡眠等待
           while (!activeMasterManager.hasActiveMaster()) {
-            LOG.debug("Waiting for master address ZNode to be written "
-              + "(Also watching cluster state node)");
+            LOG.debug("Waiting for master address ZNode to be written (Also watching cluster state node)");
             Threads.sleep(timeout);
           }
         }
         MonitoredTask status = TaskMonitor.get().createStatus("Master startup");
         status.setDescription("Master startup");
         try {
+          // 这里阻塞等待成为activeMaster，然后执行master的各种初始化
           if (activeMasterManager.blockUntilBecomingActiveMaster(timeout, status)) {
             finishActiveMasterInitialization(status);
           }

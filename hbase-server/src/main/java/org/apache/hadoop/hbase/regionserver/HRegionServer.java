@@ -506,8 +506,7 @@ public class HRegionServer extends HasThread implements
     this.conf.setBoolean(HConstants.USE_META_REPLICAS, false);
 
     // Config'ed params
-    this.numRetries = this.conf.getInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER,
-        HConstants.DEFAULT_HBASE_CLIENT_RETRIES_NUMBER);
+    this.numRetries = this.conf.getInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, HConstants.DEFAULT_HBASE_CLIENT_RETRIES_NUMBER);
     this.threadWakeFrequency = conf.getInt(HConstants.THREAD_WAKE_FREQUENCY, 10 * 1000);
     this.msgInterval = conf.getInt("hbase.regionserver.msginterval", 3 * 1000);
 
@@ -530,6 +529,7 @@ public class HRegionServer extends HasThread implements
     this.abortRequested = false;
     this.stopped = false;
 
+    // 创建rpc服务，提供客户端的连接
     rpcServices = createRpcServices();
     this.startcode = System.currentTimeMillis();
     if (this instanceof HMaster) {
@@ -736,8 +736,7 @@ public class HRegionServer extends HasThread implements
 
       // Health checker thread.
       if (isHealthCheckerConfigured()) {
-        int sleepTime = this.conf.getInt(HConstants.HEALTH_CHORE_WAKE_FREQ,
-          HConstants.DEFAULT_THREAD_WAKE_FREQUENCY);
+        int sleepTime = this.conf.getInt(HConstants.HEALTH_CHORE_WAKE_FREQ, HConstants.DEFAULT_THREAD_WAKE_FREQUENCY);
         healthCheckChore = new HealthCheckChore(sleepTime, this, getConfiguration());
       }
       this.pauseMonitor = new JvmPauseMonitor(conf);
@@ -745,6 +744,7 @@ public class HRegionServer extends HasThread implements
 
       initializeZooKeeper();
       if (!isStopped() && !isAborted()) {
+        // 初始化各种服务
         initializeThreads();
       }
     } catch (Throwable t) {
@@ -888,6 +888,7 @@ public class HRegionServer extends HasThread implements
   public void run() {
     try {
       // Do pre-registration initializations; zookeeper, lease threads, etc.
+      // 初始化各种线程，比如zk，cluster连接，缓存、文件管理器
       preRegistrationInitialization();
     } catch (Throwable e) {
       abort("Fatal exception during initialization", e);
@@ -897,6 +898,7 @@ public class HRegionServer extends HasThread implements
       if (!isStopped() && !isAborted()) {
         ShutdownHook.install(conf, fs, this, Thread.currentThread());
         // Set our ephemeral znode up in zookeeper now we have a name.
+        // 在zk中创建自己的节点
         createMyEphemeralNode();
         // Initialize the RegionServerCoprocessorHost now that our ephemeral
         // node was created, in case any coprocessors want to use ZooKeeper
@@ -905,6 +907,7 @@ public class HRegionServer extends HasThread implements
 
       // Try and register with the Master; tell it we are here.  Break if
       // server is stopped or the clusterup flag is down or hdfs went wacky.
+      // 无限循环，向master报告信息
       while (keepLooping()) {
         RegionServerStartupResponse w = reportForDuty();
         if (w == null) {
@@ -1430,8 +1433,7 @@ public class HRegionServer extends HasThread implements
     rsInfo.setInfoPort(infoServer != null ? infoServer.getPort() : -1);
     rsInfo.setVersionInfo(ProtobufUtil.getVersionInfo());
     byte[] data = ProtobufUtil.prependPBMagic(rsInfo.build().toByteArray());
-    ZKUtil.createEphemeralNodeAndWatch(this.zooKeeper,
-      getMyEphemeralNodePath(), data);
+    ZKUtil.createEphemeralNodeAndWatch(this.zooKeeper, getMyEphemeralNodePath(), data);
   }
 
   private void deleteMyEphemeralNode() throws KeeperException {

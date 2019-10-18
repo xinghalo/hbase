@@ -47,6 +47,8 @@ public abstract class ZooKeeperListener {
 
   /**
    * Called when a new node has been created.
+   * 当某个节点创建时触发
+   *
    * @param path full path of the new node
    */
   public void nodeCreated(String path) {
@@ -55,6 +57,8 @@ public abstract class ZooKeeperListener {
 
   /**
    * Called when a node has been deleted
+   * 当某个节点删除时触发
+   *
    * @param path full path of the deleted node
    */
   public void nodeDeleted(String path) {
@@ -63,6 +67,8 @@ public abstract class ZooKeeperListener {
 
   /**
    * Called when an existing node has changed data.
+   * 当某个节点数据改变时触发
+   *
    * @param path full path of the updated node
    */
   public void nodeDataChanged(String path) {
@@ -71,6 +77,8 @@ public abstract class ZooKeeperListener {
 
   /**
    * Called when an existing node has a child node added or removed.
+   * 当某个节点的子节点增加或删除时
+   *
    * @param path full path of the node whose children have changed
    */
   public void nodeChildrenChanged(String path) {

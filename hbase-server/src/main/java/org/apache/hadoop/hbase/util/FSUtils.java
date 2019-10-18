@@ -1715,8 +1715,7 @@ public abstract class FSUtils {
    * @param filter path filter
    * @return null if dir is empty or doesn't exist, otherwise FileStatus array
    */
-  public static FileStatus [] listStatus(final FileSystem fs,
-      final Path dir, final PathFilter filter) throws IOException {
+  public static FileStatus [] listStatus(final FileSystem fs, final Path dir, final PathFilter filter) throws IOException {
     FileStatus [] status = null;
     try {
       status = filter == null ? fs.listStatus(dir) : fs.listStatus(dir, filter);

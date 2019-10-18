@@ -58,8 +58,7 @@ class ZooKeeperRegistry implements Registry {
       if (LOG.isTraceEnabled()) {
         LOG.trace("Looking up meta region location in ZK," + " connection=" + this);
       }
-      List<ServerName> servers = new MetaTableLocator().blockUntilAvailable(zkw, hci.rpcTimeout,
-          hci.getConfiguration());
+      List<ServerName> servers = new MetaTableLocator().blockUntilAvailable(zkw, hci.rpcTimeout, hci.getConfiguration());
       if (LOG.isTraceEnabled()) {
         if (servers == null) {
           LOG.trace("Looked up meta region location, connection=" + this +
@@ -78,8 +77,7 @@ class ZooKeeperRegistry implements Registry {
       HRegionLocation[] locs = new HRegionLocation[servers.size()];
       int i = 0;
       for (ServerName server : servers) {
-        HRegionInfo h = RegionReplicaUtil.getRegionInfoForReplica(
-                HRegionInfo.FIRST_META_REGIONINFO, i);
+        HRegionInfo h = RegionReplicaUtil.getRegionInfoForReplica(HRegionInfo.FIRST_META_REGIONINFO, i);
         if (server == null) locs[i++] = null;
         else locs[i++] = new HRegionLocation(h, server, 0);
       }

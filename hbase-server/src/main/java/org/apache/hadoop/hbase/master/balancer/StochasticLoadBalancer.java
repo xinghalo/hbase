@@ -227,8 +227,7 @@ public class StochasticLoadBalancer extends BaseLoadBalancer {
    * should always approach the optimal state given enough steps.
    */
   @Override
-  public synchronized List<RegionPlan> balanceCluster(Map<ServerName,
-    List<HRegionInfo>> clusterState) {
+  public synchronized List<RegionPlan> balanceCluster(Map<ServerName, List<HRegionInfo>> clusterState) {
     List<RegionPlan> plans = balanceMasterRegions(clusterState);
     if (plans != null || clusterState == null || clusterState.size() <= 1) {
       return plans;

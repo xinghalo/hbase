@@ -71,13 +71,17 @@ public class ActiveMasterManager extends ZooKeeperListener {
     this.master = master;
   }
 
-  // will be set after jetty server is started
+  /**
+   * will be set after jetty server is started
+   * jetty启动时，调用该接口
+   */
   public void setInfoPort(int infoPort) {
     this.infoPort = infoPort;
   }
 
   @Override
   public void nodeCreated(String path) {
+    // 当node创建时，判断master是否stop，如果stop则更换master
     handle(path);
   }
 
@@ -121,6 +125,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
     // Watch the node and check if it exists.
     try {
       synchronized(clusterHasActiveMaster) {
+        // 判断node是否存在，如果存在则对应的地址为 active master
         if (ZKUtil.watchAndCheckExists(watcher, watcher.getMasterAddressZNode())) {
           // A master node exists, there is an active master
           LOG.debug("A master is now available");
@@ -129,7 +134,9 @@ public class ActiveMasterManager extends ZooKeeperListener {
           // Node is no longer there, cluster does not have an active master
           LOG.debug("No master available. Notifying waiting threads");
           clusterHasActiveMaster.set(false);
+
           // Notify any thread waiting to become the active master
+          // 唤醒等待成为master的线程
           clusterHasActiveMaster.notifyAll();
         }
       }
@@ -143,6 +150,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
    *
    * Method blocks until there is not another active master and our attempt
    * to become the new active master is successful.
+   * 方法会一直阻塞，直到成为新的active master为止
    *
    * This also makes sure that we are watching the master znode so will be
    * notified if another master dies.
@@ -152,20 +160,20 @@ public class ActiveMasterManager extends ZooKeeperListener {
    * master was running or if some other problem (zookeeper, stop flag has been
    * set on this Master)
    */
-  boolean blockUntilBecomingActiveMaster(
-      int checkInterval, MonitoredTask startupStatus) {
-    String backupZNode = ZKUtil.joinZNode(
-      this.watcher.backupMasterAddressesZNode, this.sn.toString());
+  boolean blockUntilBecomingActiveMaster(int checkInterval, MonitoredTask startupStatus) {
+    String backupZNode = ZKUtil.joinZNode(this.watcher.backupMasterAddressesZNode, this.sn.toString());
+
     while (!(master.isAborted() || master.isStopped())) {
       startupStatus.setStatus("Trying to register in ZK as active master");
       // Try to become the active master, watch if there is another master.
       // Write out our ServerName as versioned bytes.
       try {
-        if (MasterAddressTracker.setMasterAddress(this.watcher,
-            this.watcher.getMasterAddressZNode(), this.sn, infoPort)) {
+        // 判断是否写入成功，把当前的server名和端口号写入zk，如果写入成功则说明抢master成功
+        if (MasterAddressTracker.setMasterAddress(this.watcher,this.watcher.getMasterAddressZNode(), this.sn, infoPort)) {
 
           // If we were a backup master before, delete our ZNode from the backup
           // master directory since we are the active now)
+          // 如果之前是备份节点，则删除对应的node
           if (ZKUtil.checkExists(this.watcher, backupZNode) != -1) {
             LOG.info("Deleting ZNode for " + backupZNode + " from backup master directory");
             ZKUtil.deleteNodeFailSilent(this.watcher, backupZNode);
@@ -174,6 +182,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
           ZNodeClearer.writeMyEphemeralNodeOnDisk(this.sn.toString());
 
           // We are the master, return
+          // 竞争成为master，返回true
           startupStatus.setStatus("Successfully registered as active master.");
           this.clusterHasActiveMaster.set(true);
           LOG.info("Registered Active Master=" + this.sn);
@@ -182,15 +191,17 @@ public class ActiveMasterManager extends ZooKeeperListener {
 
         // There is another active master running elsewhere or this is a restart
         // and the master ephemeral node has not expired yet.
+        // 此时有另一个激活的master正在运行
         this.clusterHasActiveMaster.set(true);
 
         String msg;
-        byte[] bytes =
-          ZKUtil.getDataAndWatch(this.watcher, this.watcher.getMasterAddressZNode());
+        byte[] bytes = ZKUtil.getDataAndWatch(this.watcher, this.watcher.getMasterAddressZNode());
         if (bytes == null) {
+          // 如果zk中的数据为空，则继续，尝试成为下一个active节点
           msg = ("A master was detected, but went down before its address " +
             "could be read.  Attempting to become the next active master");
         } else {
+          // 如果zk的内容不为空，获取当前激活的master名称
           ServerName currentMaster;
           try {
             currentMaster = ServerName.parseFrom(bytes);
@@ -200,8 +211,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
             continue;
           }
           if (ServerName.isSameHostnameAndPort(currentMaster, this.sn)) {
-            msg = ("Current master has this master's address, " +
-              currentMaster + "; master was restarted? Deleting node.");
+            msg = ("Current master has this master's address, " + currentMaster + "; master was restarted? Deleting node.");
             // Hurry along the expiration of the znode.
             ZKUtil.deleteNode(this.watcher, this.watcher.getMasterAddressZNode());
 
@@ -209,8 +219,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
             //  we delete the file anyway: a second attempt to delete the znode is likely to fail again.
             ZNodeClearer.deleteMyEphemeralNodeOnDisk();
           } else {
-            msg = "Another master is the active master, " + currentMaster +
-              "; waiting to become the next active master";
+            msg = "Another master is the active master, " + currentMaster + "; waiting to become the next active master";
           }
         }
         LOG.info(msg);
@@ -219,6 +228,8 @@ public class ActiveMasterManager extends ZooKeeperListener {
         master.abort("Received an unexpected KeeperException, aborting", ke);
         return false;
       }
+
+      // 如果当前有激活的Master，则进行挂起监听
       synchronized (this.clusterHasActiveMaster) {
         while (clusterHasActiveMaster.get() && !master.isStopped()) {
           try {
@@ -230,8 +241,7 @@ public class ActiveMasterManager extends ZooKeeperListener {
           }
         }
         if (clusterShutDown.get()) {
-          this.master.stop(
-            "Cluster went down before this master became active");
+          this.master.stop("Cluster went down before this master became active");
         }
       }
     }

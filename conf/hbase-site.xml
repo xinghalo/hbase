@@ -29,4 +29,8 @@
         <name>hbase.zookeeper.property.dataDir</name>
         <value>/Users/xingoo/Documents/source/hbase/data/zookeeper</value>
     </property>
+    <property>
+        <name>hbase.balancer.period</name>
+        <value>60000</value>
+    </property>
 </configuration>

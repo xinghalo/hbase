@@ -32,6 +32,8 @@ import org.apache.hadoop.hbase.ServerName;
  * should be moved from, and info for the server the region should be moved
  * to.
  *
+ * 包含要转移的region，来源、目标
+ *
  * The comparable implementation of this class compares only the region
  * information and not the source/dest server info.
  */

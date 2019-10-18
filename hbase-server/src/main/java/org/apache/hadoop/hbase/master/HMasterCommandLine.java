@@ -134,6 +134,7 @@ public class HMasterCommandLine extends ServerCommandLine {
     String command = remainingArgs.get(0);
 
     if ("start".equals(command)) {
+      // master启动执行
       return startMaster();
     } else if ("stop".equals(command)) {
       return stopMaster();
@@ -219,6 +220,8 @@ public class HMasterCommandLine extends ServerCommandLine {
         int regionServersCount = conf.getInt("hbase.regionservers", 1);
         LOG.info("Starting up instance of localHBaseCluster; master=" + mastersCount +
           ", regionserversCount=" + regionServersCount);
+
+        // 上面都是zk相关的信息，这里创建本地的cluster
         LocalHBaseCluster cluster = new LocalHBaseCluster(conf, mastersCount, regionServersCount,
           LocalHMaster.class, HRegionServer.class);
         ((LocalHMaster)cluster.getMaster(0)).setZKCluster(zooKeeperCluster);

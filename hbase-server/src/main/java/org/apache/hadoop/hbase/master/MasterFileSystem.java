@@ -127,9 +127,7 @@ public class MasterFileSystem {
     // set up the archived logs path
     this.oldLogDir = createInitialFileSystemLayout();
     HFileSystem.addLocationsOrderInterceptor(conf);
-    this.splitLogManager =
-        new SplitLogManager(master, master.getConfiguration(), master, services,
-            master.getServerName());
+    this.splitLogManager = new SplitLogManager(master, master.getConfiguration(), master, services, master.getServerName());
     this.distributedLogReplay = this.splitLogManager.isLogReplaying();
   }
 
@@ -218,13 +216,14 @@ public class MasterFileSystem {
 
   /**
    * Inspect the log directory to find dead servers which need recovery work
+   * 通过WALs日志查找哪些RS需要重新恢复工作
    * @return A set of ServerNames which aren't running but still have WAL files left in file system
    */
   Set<ServerName> getFailedServersFromLogFolders() {
-    boolean retrySplitting = !conf.getBoolean("hbase.hlog.split.skip.errors",
-        WALSplitter.SPLIT_SKIP_ERRORS_DEFAULT);
+    boolean retrySplitting = !conf.getBoolean("hbase.hlog.split.skip.errors", WALSplitter.SPLIT_SKIP_ERRORS_DEFAULT);
 
     Set<ServerName> serverNames = new HashSet<ServerName>();
+    // 读取 /hbase/WALs下面的内容
     Path logsDirPath = new Path(this.rootdir, HConstants.HREGION_LOGDIR_NAME);
 
     do {
@@ -237,28 +236,25 @@ public class MasterFileSystem {
         FileStatus[] logFolders = FSUtils.listStatus(this.fs, logsDirPath, null);
         // Get online servers after getting log folders to avoid log folder deletion of newly
         // checked in region servers . see HBASE-5916
-        Set<ServerName> onlineServers = ((HMaster) master).getServerManager().getOnlineServers()
-            .keySet();
+        Set<ServerName> onlineServers = ((HMaster) master).getServerManager().getOnlineServers().keySet();
 
         if (logFolders == null || logFolders.length == 0) {
           LOG.debug("No log files to split, proceeding...");
           return serverNames;
         }
+
+        // 遍历文件目录，截取第一部分作为主机名
         for (FileStatus status : logFolders) {
           FileStatus[] curLogFiles = FSUtils.listStatus(this.fs, status.getPath(), null);
           if (curLogFiles == null || curLogFiles.length == 0) {
             // Empty log folder. No recovery needed
             continue;
           }
-          final ServerName serverName = DefaultWALProvider.getServerNameFromWALDirectoryName(
-              status.getPath());
+          final ServerName serverName = DefaultWALProvider.getServerNameFromWALDirectoryName(status.getPath());
           if (null == serverName) {
-            LOG.warn("Log folder " + status.getPath() + " doesn't look like its name includes a " +
-                "region server name; leaving in place. If you see later errors about missing " +
-                "write ahead logs they may be saved in this location.");
+            LOG.warn("Log folder " + status.getPath() + " doesn't look like its name includes a region server name; leaving in place. If you see later errors about missing write ahead logs they may be saved in this location.");
           } else if (!onlineServers.contains(serverName)) {
-            LOG.info("Log folder " + status.getPath() + " doesn't belong "
-                + "to a known region server, splitting");
+            LOG.info("Log folder " + status.getPath() + " doesn't belong to a known region server, splitting");
             serverNames.add(serverName);
           } else {
             LOG.info("Log folder " + status.getPath() + " belongs to an existing region server");

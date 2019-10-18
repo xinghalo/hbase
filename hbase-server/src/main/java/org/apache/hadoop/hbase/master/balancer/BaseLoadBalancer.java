@@ -984,12 +984,12 @@ public abstract class BaseLoadBalancer implements LoadBalancer {
   /**
    * Balance the regions that should be on master regionserver.
    */
-  protected List<RegionPlan> balanceMasterRegions(
-      Map<ServerName, List<HRegionInfo>> clusterMap) {
-    if (masterServerName == null
-        || clusterMap == null || clusterMap.size() <= 1) return null;
+  protected List<RegionPlan> balanceMasterRegions(Map<ServerName, List<HRegionInfo>> clusterMap) {
+    if (masterServerName == null || clusterMap == null || clusterMap.size() <= 1) return null;
+
     List<RegionPlan> plans = null;
     List<HRegionInfo> regions = clusterMap.get(masterServerName);
+
     if (regions != null) {
       Iterator<ServerName> keyIt = null;
       for (HRegionInfo region: regions) {
@@ -999,6 +999,7 @@ public abstract class BaseLoadBalancer implements LoadBalancer {
         if (keyIt == null || !keyIt.hasNext()) {
           keyIt = clusterMap.keySet().iterator();
         }
+        // 轮训方式分配
         ServerName dest = keyIt.next();
         if (masterServerName.equals(dest)) {
           if (!keyIt.hasNext()) {

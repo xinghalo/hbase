@@ -103,13 +103,11 @@ class MemStoreFlusher implements FlushRequester {
    * @param conf
    * @param server
    */
-  public MemStoreFlusher(final Configuration conf,
-      final HRegionServer server) {
+  public MemStoreFlusher(final Configuration conf, final HRegionServer server) {
     super();
     this.conf = conf;
     this.server = server;
-    this.threadWakeFrequency =
-      conf.getLong(HConstants.THREAD_WAKE_FREQUENCY, 10 * 1000);
+    this.threadWakeFrequency = conf.getLong(HConstants.THREAD_WAKE_FREQUENCY, 10 * 1000);
     long max = -1L;
     final MemoryUsage usage = HeapMemorySizeUtil.safeGetHeapMemoryUsage();
     if (usage != null) {
@@ -117,13 +115,10 @@ class MemStoreFlusher implements FlushRequester {
     }
     float globalMemStorePercent = HeapMemorySizeUtil.getGlobalMemStorePercent(conf, true);
     this.globalMemStoreLimit = (long) (max * globalMemStorePercent);
-    this.globalMemStoreLimitLowMarkPercent =
-        HeapMemorySizeUtil.getGlobalMemStoreLowerMark(conf, globalMemStorePercent);
-    this.globalMemStoreLimitLowMark =
-        (long) (this.globalMemStoreLimit * this.globalMemStoreLimitLowMarkPercent);
+    this.globalMemStoreLimitLowMarkPercent = HeapMemorySizeUtil.getGlobalMemStoreLowerMark(conf, globalMemStorePercent);
+    this.globalMemStoreLimitLowMark = (long) (this.globalMemStoreLimit * this.globalMemStoreLimitLowMarkPercent);
 
-    this.blockingWaitTime = conf.getInt("hbase.hstore.blockingWaitTime",
-      90000);
+    this.blockingWaitTime = conf.getInt("hbase.hstore.blockingWaitTime", 90000);
     int handlerCount = conf.getInt("hbase.hstore.flusher.count", 2);
     this.flushHandlers = new FlushHandler[handlerCount];
     LOG.info("globalMemStoreLimit="

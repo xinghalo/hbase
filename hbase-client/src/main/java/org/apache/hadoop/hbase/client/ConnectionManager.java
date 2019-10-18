@@ -648,8 +648,7 @@ class ConnectionManager {
      * are shared, we have reference counting going on and will only do full cleanup when no more
      * users of an HConnectionImplementation instance.
      */
-    HConnectionImplementation(Configuration conf, boolean managed,
-        ExecutorService pool, User user, String clusterId) throws IOException {
+    HConnectionImplementation(Configuration conf, boolean managed, ExecutorService pool, User user, String clusterId) throws IOException {
       this(conf);
       this.clusterId = clusterId;
       this.user = user;
@@ -1164,26 +1163,22 @@ class ConnectionManager {
     }
 
     @Override
-    public HRegionLocation relocateRegion(final byte[] tableName,
-        final byte [] row) throws IOException {
+    public HRegionLocation relocateRegion(final byte[] tableName, final byte [] row) throws IOException {
       return relocateRegion(TableName.valueOf(tableName), row);
     }
 
     @Override
-    public RegionLocations locateRegion(final TableName tableName,
-      final byte [] row, boolean useCache, boolean retry)
+    public RegionLocations locateRegion(final TableName tableName,final byte [] row, boolean useCache, boolean retry)
     throws IOException {
       return locateRegion(tableName, row, useCache, retry, RegionReplicaUtil.DEFAULT_REPLICA_ID);
     }
 
     @Override
-    public RegionLocations locateRegion(final TableName tableName,
-      final byte [] row, boolean useCache, boolean retry, int replicaId)
+    public RegionLocations locateRegion(final TableName tableName, final byte [] row, boolean useCache, boolean retry, int replicaId)
     throws IOException {
       if (this.closed) throw new DoNotRetryIOException(toString() + " closed");
       if (tableName== null || tableName.getName().length == 0) {
-        throw new IllegalArgumentException(
-            "table name cannot be null or zero length");
+        throw new IllegalArgumentException("table name cannot be null or zero length");
       }
       if (tableName.equals(TableName.META_TABLE_NAME)) {
         return locateMeta(tableName, useCache, replicaId);
@@ -1193,8 +1188,7 @@ class ConnectionManager {
       }
     }
 
-    private RegionLocations locateMeta(final TableName tableName,
-        boolean useCache, int replicaId) throws IOException {
+    private RegionLocations locateMeta(final TableName tableName, boolean useCache, int replicaId) throws IOException {
       // HBASE-10785: We cache the location of the META itself, so that we are not overloading
       // zookeeper with one request for every region lookup. We cache the META with empty row
       // key in MetaCache.
@@ -1617,9 +1611,7 @@ class ConnectionManager {
 
     @Override
     // Nothing is done w/ the 'master' parameter.  It is ignored.
-    public AdminService.BlockingInterface getAdmin(final ServerName serverName,
-      final boolean master)
-    throws IOException {
+    public AdminService.BlockingInterface getAdmin(final ServerName serverName, final boolean master) throws IOException {
       if (isDeadServer(serverName)) {
         throw new RegionServerStoppedException(serverName + " is dead.");
       }
@@ -1630,8 +1622,7 @@ class ConnectionManager {
       synchronized (this.connectionLock.get(key)) {
         stub = (AdminService.BlockingInterface)this.stubs.get(key);
         if (stub == null) {
-          BlockingRpcChannel channel =
-              this.rpcClient.createBlockingRpcChannel(serverName, user, rpcTimeout);
+          BlockingRpcChannel channel = this.rpcClient.createBlockingRpcChannel(serverName, user, rpcTimeout);
           stub = AdminService.newBlockingStub(channel);
           this.stubs.put(key, stub);
         }
