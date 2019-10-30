@@ -946,13 +946,14 @@ public class ZKUtil {
 
   /**
    *
-   * Set the specified znode to be an ephemeral node carrying the specified
-   * data.
+   * Set the specified znode to be an ephemeral node carrying the specified data.
+   * 创建临时节点
    *
    * If the node is created successfully, a watcher is also set on the node.
+   * 如果创建成功，则创建对应节点的监视器
    *
-   * If the node is not created successfully because it already exists, this
-   * method will also set a watcher on the node.
+   * If the node is not created successfully because it already exists, this method will also set a watcher on the node.
+   * 如果没有创建成功，仍然会返回对应节点的监视器
    *
    * If there is another problem, a KeeperException will be thrown.
    *
@@ -962,13 +963,10 @@ public class ZKUtil {
    * @return true if node created, false if not, watch set in both cases
    * @throws KeeperException if unexpected zookeeper exception
    */
-  public static boolean createEphemeralNodeAndWatch(ZooKeeperWatcher zkw,
-      String znode, byte [] data)
-  throws KeeperException {
+  public static boolean createEphemeralNodeAndWatch(ZooKeeperWatcher zkw, String znode, byte [] data) throws KeeperException {
     boolean ret = true;
     try {
-      zkw.getRecoverableZooKeeper().create(znode, data, createACL(zkw, znode),
-          CreateMode.EPHEMERAL);
+      zkw.getRecoverableZooKeeper().create(znode, data, createACL(zkw, znode), CreateMode.EPHEMERAL);
     } catch (KeeperException.NodeExistsException nee) {
       ret = false;
     } catch (InterruptedException e) {

@@ -435,20 +435,17 @@ public abstract class Mutation extends OperationWithAttributes implements Row, C
     heapsize += ClassSize.align(ClassSize.ARRAY + this.row.length);
 
     // Adding map overhead
-    heapsize +=
-      ClassSize.align(this.familyMap.size() * ClassSize.MAP_ENTRY);
+    heapsize += ClassSize.align(this.familyMap.size() * ClassSize.MAP_ENTRY);
     for(Map.Entry<byte [], List<Cell>> entry : this.familyMap.entrySet()) {
       //Adding key overhead
-      heapsize +=
-        ClassSize.align(ClassSize.ARRAY + entry.getKey().length);
+      heapsize += ClassSize.align(ClassSize.ARRAY + entry.getKey().length);
 
       //This part is kinds tricky since the JVM can reuse references if you
       //store the same value, but have a good match with SizeOf at the moment
       //Adding value overhead
       heapsize += ClassSize.align(ClassSize.ARRAYLIST);
       int size = entry.getValue().size();
-      heapsize += ClassSize.align(ClassSize.ARRAY +
-          size * ClassSize.REFERENCE);
+      heapsize += ClassSize.align(ClassSize.ARRAY + size * ClassSize.REFERENCE);
 
       for(Cell cell : entry.getValue()) {
         heapsize += CellUtil.estimatedHeapSizeOf(cell);

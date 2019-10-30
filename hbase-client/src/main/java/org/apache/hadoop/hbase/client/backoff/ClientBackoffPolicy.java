@@ -32,8 +32,7 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 @InterfaceStability.Unstable
 public interface ClientBackoffPolicy {
 
-  public static final String BACKOFF_POLICY_CLASS =
-      "hbase.client.statistics.backoff-policy";
+  public static final String BACKOFF_POLICY_CLASS = "hbase.client.statistics.backoff-policy";
 
   /**
    * @return the number of ms to wait on the client based on the

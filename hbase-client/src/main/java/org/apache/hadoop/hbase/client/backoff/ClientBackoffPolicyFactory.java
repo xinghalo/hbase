@@ -36,11 +36,8 @@ public final class ClientBackoffPolicyFactory {
 
   public static ClientBackoffPolicy create(Configuration conf) {
     // create the backoff policy
-    String className =
-        conf.get(ClientBackoffPolicy.BACKOFF_POLICY_CLASS, NoBackoffPolicy.class
-            .getName());
-      return ReflectionUtils.instantiateWithCustomCtor(className,
-          new Class<?>[] { Configuration.class }, new Object[] { conf });
+    String className = conf.get(ClientBackoffPolicy.BACKOFF_POLICY_CLASS, NoBackoffPolicy.class.getName());
+    return ReflectionUtils.instantiateWithCustomCtor(className,  new Class<?>[] { Configuration.class }, new Object[] { conf });
   }
 
   /**

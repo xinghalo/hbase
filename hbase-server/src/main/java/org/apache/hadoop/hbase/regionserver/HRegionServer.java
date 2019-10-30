@@ -200,8 +200,7 @@ import sun.misc.SignalHandler;
  */
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.TOOLS)
 @SuppressWarnings("deprecation")
-public class HRegionServer extends HasThread implements
-    RegionServerServices, LastSequenceId {
+public class HRegionServer extends HasThread implements RegionServerServices, LastSequenceId {
 
   private static final Log LOG = LogFactory.getLog(HRegionServer.class);
 
@@ -933,7 +932,8 @@ public class HRegionServer extends HasThread implements
       // We registered with the Master.  Go into run mode.
       long lastMsg = System.currentTimeMillis();
       long oldRequestCount = -1;
-      // The main run loop.
+
+      // The main run loop. 开始进入循环不断执行服务
       while (!isStopped() && isHealthy()) {
         if (!isClusterUp()) {
           if (isOnlineRegionsEmpty()) {
@@ -977,7 +977,8 @@ public class HRegionServer extends HasThread implements
         abort(prefix + t.getMessage(), t);
       }
     }
-    // Run shutdown.
+
+    // Run shutdown. 停止对应的各项服务
     if (mxBean != null) {
       MBeanUtil.unregisterMBean(mxBean);
       mxBean = null;
@@ -1334,13 +1335,12 @@ public class HRegionServer extends HasThread implements
     }
   }
 
-  /*
+  /**
    * Run init. Sets up wal and starts up all server threads.
-   *
-   * @param c Extra configuration.
+   * @param c
+   * @throws IOException
    */
-  protected void handleReportForDutyResponse(final RegionServerStartupResponse c)
-  throws IOException {
+  protected void handleReportForDutyResponse(final RegionServerStartupResponse c) throws IOException {
     try {
       boolean updateRootDir = false;
       for (NameStringPair e : c.getMapEntriesList()) {
@@ -1392,6 +1392,7 @@ public class HRegionServer extends HasThread implements
       }
 
       // Save it in a file, this will allow to see if we crash
+      // zknode的地址为: rs的根目录/服务器地址，如 /hbase/rs/localnode7,60020,1571711635610
       ZNodeClearer.writeMyEphemeralNodeOnDisk(getMyEphemeralNodePath());
 
       this.cacheConfig = new CacheConfig(conf);
@@ -1429,10 +1430,13 @@ public class HRegionServer extends HasThread implements
   }
 
   private void createMyEphemeralNode() throws KeeperException, IOException {
+    // 配置服务器的端口号和版本号
     RegionServerInfo.Builder rsInfo = RegionServerInfo.newBuilder();
     rsInfo.setInfoPort(infoServer != null ? infoServer.getPort() : -1);
     rsInfo.setVersionInfo(ProtobufUtil.getVersionInfo());
     byte[] data = ProtobufUtil.prependPBMagic(rsInfo.build().toByteArray());
+
+    // 创建临时节点
     ZKUtil.createEphemeralNodeAndWatch(this.zooKeeper, getMyEphemeralNodePath(), data);
   }
 

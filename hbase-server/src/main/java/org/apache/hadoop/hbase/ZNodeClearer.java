@@ -51,6 +51,8 @@ public class ZNodeClearer {
 
   /**
    * Logs the errors without failing on exception.
+   *
+   * 如果配置了HBASE_ZNODE_FILE，则会持久化到磁盘上。
    */
   public static void writeMyEphemeralNodeOnDisk(String fileContent) {
     String fileName = ZNodeClearer.getMyEphemeralNodeFileName();

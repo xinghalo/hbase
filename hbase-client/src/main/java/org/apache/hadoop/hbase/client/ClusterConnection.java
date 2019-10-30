@@ -185,8 +185,7 @@ public interface ClusterConnection extends HConnection {
    * @return region locations for this row.
    * @throws IOException
    */
-  RegionLocations locateRegion(TableName tableName,
-                               byte[] row, boolean useCache, boolean retry) throws IOException;
+  RegionLocations locateRegion(TableName tableName, byte[] row, boolean useCache, boolean retry) throws IOException;
 
   /**
   *
@@ -198,8 +197,7 @@ public interface ClusterConnection extends HConnection {
   * @return region locations for this row.
   * @throws IOException
   */
- RegionLocations locateRegion(TableName tableName,
-                              byte[] row, boolean useCache, boolean retry, int replicaId) throws IOException;
+ RegionLocations locateRegion(TableName tableName, byte[] row, boolean useCache, boolean retry, int replicaId) throws IOException;
 
   /**
    * Returns a {@link MasterKeepAliveConnection} to the active master

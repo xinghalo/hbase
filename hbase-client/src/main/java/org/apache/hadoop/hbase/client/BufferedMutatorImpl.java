@@ -67,6 +67,8 @@ public class BufferedMutatorImpl implements BufferedMutator {
   @VisibleForTesting
   AtomicLong currentWriteBufferSize = new AtomicLong(0);
 
+
+  // 提交flush的大小
   private long writeBufferSize;
   private final int maxKeyValueSize;
   private boolean closed = false;
@@ -75,8 +77,10 @@ public class BufferedMutatorImpl implements BufferedMutator {
   @VisibleForTesting
   protected AsyncProcess ap; // non-final so can be overridden in test
 
-  BufferedMutatorImpl(ClusterConnection conn, RpcRetryingCallerFactory rpcCallerFactory,
-      RpcControllerFactory rpcFactory, BufferedMutatorParams params) {
+  BufferedMutatorImpl(ClusterConnection conn,
+                      RpcRetryingCallerFactory rpcCallerFactory,
+                      RpcControllerFactory rpcFactory,
+                      BufferedMutatorParams params) {
     if (conn == null || conn.isClosed()) {
       throw new IllegalArgumentException("Connection is null or closed.");
     }
@@ -88,10 +92,8 @@ public class BufferedMutatorImpl implements BufferedMutator {
     this.listener = params.getListener();
 
     ConnectionConfiguration tableConf = new ConnectionConfiguration(conf);
-    this.writeBufferSize = params.getWriteBufferSize() != BufferedMutatorParams.UNSET ?
-        params.getWriteBufferSize() : tableConf.getWriteBufferSize();
-    this.maxKeyValueSize = params.getMaxKeyValueSize() != BufferedMutatorParams.UNSET ?
-        params.getMaxKeyValueSize() : tableConf.getMaxKeyValueSize();
+    this.writeBufferSize = params.getWriteBufferSize() != BufferedMutatorParams.UNSET ? params.getWriteBufferSize() : tableConf.getWriteBufferSize();
+    this.maxKeyValueSize = params.getMaxKeyValueSize() != BufferedMutatorParams.UNSET ? params.getMaxKeyValueSize() : tableConf.getMaxKeyValueSize();
 
     // puts need to track errors globally due to how the APIs currently work.
     ap = new AsyncProcess(connection, conf, pool, rpcCallerFactory, true, rpcFactory);
@@ -108,14 +110,19 @@ public class BufferedMutatorImpl implements BufferedMutator {
   }
 
   @Override
-  public void mutate(Mutation m) throws InterruptedIOException,
-      RetriesExhaustedWithDetailsException {
+  public void mutate(Mutation m) throws InterruptedIOException, RetriesExhaustedWithDetailsException {
     mutate(Arrays.asList(m));
   }
 
+  /**
+   * 提交的核心代码
+   *
+   * @param ms
+   * @throws InterruptedIOException
+   * @throws RetriesExhaustedWithDetailsException
+   */
   @Override
-  public void mutate(List<? extends Mutation> ms) throws InterruptedIOException,
-      RetriesExhaustedWithDetailsException {
+  public void mutate(List<? extends Mutation> ms) throws InterruptedIOException, RetriesExhaustedWithDetailsException {
 
     if (closed) {
       throw new IllegalStateException("Cannot put when the BufferedMutator is closed.");
@@ -124,14 +131,19 @@ public class BufferedMutatorImpl implements BufferedMutator {
     long toAddSize = 0;
     for (Mutation m : ms) {
       if (m instanceof Put) {
+        // 校验cell的长度是否超过最大限制，限制通过参数控制：hbase.client.keyvalue.maxsize，默认是10M
         validatePut((Put) m);
       }
+      // 计算对内存大小
+      // TODO 如何计算堆内存的占用大小
       toAddSize += m.heapSize();
     }
 
     // This behavior is highly non-intuitive... it does not protect us against
     // 94-incompatible behavior, which is a timing issue because hasError, the below code
     // and setter of hasError are not synchronized. Perhaps it should be removed.
+
+    // 查看异步进程是否有问题
     if (ap.hasError()) {
       currentWriteBufferSize.addAndGet(toAddSize);
       writeAsyncBuffer.addAll(ms);
@@ -142,7 +154,9 @@ public class BufferedMutatorImpl implements BufferedMutator {
     }
 
     // Now try and queue what needs to be queued.
+    // 如果大小超过writeBufferSize 就执行提交
     while (currentWriteBufferSize.get() > writeBufferSize) {
+      // TODO 提交过程都做了什么
       backgroundFlushCommits(false);
     }
   }
@@ -195,12 +209,9 @@ public class BufferedMutatorImpl implements BufferedMutator {
    * the is an error (max retried reach from a previous flush or bad operation), it tries to send
    * all operations in the buffer and sends an exception.
    *
-   * @param synchronous - if true, sends all the writes and wait for all of them to finish before
-   *        returning.
+   * @param synchronous - if true, sends all the writes and wait for all of them to finish before returning.
    */
-  private void backgroundFlushCommits(boolean synchronous) throws
-      InterruptedIOException,
-      RetriesExhaustedWithDetailsException {
+  private void backgroundFlushCommits(boolean synchronous) throws InterruptedIOException, RetriesExhaustedWithDetailsException {
 
     LinkedList<Mutation> buffer = new LinkedList<>();
     // Keep track of the size so that this thread doesn't spin forever
@@ -210,12 +221,15 @@ public class BufferedMutatorImpl implements BufferedMutator {
       // Grab all of the available mutations.
       Mutation m;
 
-      // If there's no buffer size drain everything. If there is a buffersize drain up to twice
-      // that amount. This should keep the loop from continually spinning if there are threads
-      // that keep adding more data to the buffer.
-      while (
-          (writeBufferSize <= 0 || dequeuedSize < (writeBufferSize * 2) || synchronous)
-              && (m = writeAsyncBuffer.poll()) != null) {
+      // If there's no buffer size drain everything.
+      // If there is a buffersize drain up to twice that amount.
+      // This should keep the loop from continually spinning if there are threads that keep adding more data to the buffer.
+
+      // 这里有三个条件，其中一个生效就会触发队列的数据提交
+      // 1 传入的参数为是否异步，在前面调用的时候，如果ap出错，就会传true
+      // 2 没有配置buffer size，即为-1
+      // 3 提交的数据大小没有超过写入大小最大值的两倍
+      while ((writeBufferSize <= 0 || dequeuedSize < (writeBufferSize * 2) || synchronous) && (m = writeAsyncBuffer.poll()) != null) {
         buffer.add(m);
         long size = m.heapSize();
         dequeuedSize += size;
@@ -226,19 +240,21 @@ public class BufferedMutatorImpl implements BufferedMutator {
         return;
       }
 
+      // 如果不是同步的，则直接使用ap进行提交
       if (!synchronous) {
         ap.submit(tableName, buffer, true, null, false);
+
         if (ap.hasError()) {
-          LOG.debug(tableName + ": One or more of the operations have failed -"
-              + " waiting for all operation in progress to finish (successfully or not)");
+          LOG.debug(tableName + ": One or more of the operations have failed - waiting for all operation in progress to finish (successfully or not)");
         }
       }
+
+      // 如果是同步的，则不停的循环等待，直到buffer中的消息都提交
       if (synchronous || ap.hasError()) {
         while (!buffer.isEmpty()) {
           ap.submit(tableName, buffer, true, null, false);
         }
-        RetriesExhaustedWithDetailsException error =
-            ap.waitForAllPreviousOpsAndReset(null, tableName.getNameAsString());
+        RetriesExhaustedWithDetailsException error = ap.waitForAllPreviousOpsAndReset(null, tableName.getNameAsString());
         if (error != null) {
           if (listener == null) {
             throw error;
@@ -248,6 +264,7 @@ public class BufferedMutatorImpl implements BufferedMutator {
         }
       }
     } finally {
+      // 如果最后处于什么原因失败了，那么mutation buffer中的数据要重新放入buffer中。
       for (Mutation mut : buffer) {
         long size = mut.heapSize();
         currentWriteBufferSize.addAndGet(size);

@@ -531,9 +531,7 @@ public class RecoverableZooKeeper {
    *
    * @return Path
    */
-  public String create(String path, byte[] data, List<ACL> acl,
-      CreateMode createMode)
-  throws KeeperException, InterruptedException {
+  public String create(String path, byte[] data, List<ACL> acl, CreateMode createMode) throws KeeperException, InterruptedException {
     TraceScope traceScope = null;
     try {
       traceScope = Trace.startSpan("RecoverableZookeeper.create");
@@ -548,8 +546,7 @@ public class RecoverableZooKeeper {
           return createSequential(path, newData, acl, createMode);
 
         default:
-          throw new IllegalArgumentException("Unrecognized CreateMode: " +
-              createMode);
+          throw new IllegalArgumentException("Unrecognized CreateMode: " + createMode);
       }
     } finally {
       if (traceScope != null) traceScope.close();

@@ -1126,9 +1126,15 @@ class ConnectionManager {
       return locateRegions(TableName.valueOf(tableName), useCache, offlined);
     }
 
+    /**
+     * 定位region
+     * @param tableName name of the table <i>row</i> is in
+     * @param row row key you're trying to find the region of
+     * @return
+     * @throws IOException
+     */
     @Override
-    public HRegionLocation locateRegion(
-        final TableName tableName, final byte[] row) throws IOException{
+    public HRegionLocation locateRegion(final TableName tableName, final byte[] row) throws IOException{
       RegionLocations locations = locateRegion(tableName, row, true, true);
       return locations == null ? null : locations.getRegionLocation();
     }

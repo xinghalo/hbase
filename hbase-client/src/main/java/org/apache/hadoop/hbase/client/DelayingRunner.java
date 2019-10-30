@@ -60,8 +60,7 @@ public class DelayingRunner<T> implements Runnable {
   @Override
   public void run() {
     if (!sleep()) {
-      LOG.warn(
-          "Interrupted while sleeping for expected sleep time " + sleepTime + " ms");
+      LOG.warn("Interrupted while sleeping for expected sleep time " + sleepTime + " ms");
     }
     //TODO maybe we should consider switching to a listenableFuture for the actual callable and
     // then handling the results/errors as callbacks. That way we can decrement outstanding tasks

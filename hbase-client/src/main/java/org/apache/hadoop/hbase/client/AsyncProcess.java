@@ -353,16 +353,17 @@ class AsyncProcess {
    * See {@link #submit(ExecutorService, TableName, List, boolean, org.apache.hadoop.hbase.client.coprocessor.Batch.Callback, boolean)}.
    * Uses default ExecutorService for this AP (must have been created with one).
    */
-  public <CResult> AsyncRequestFuture submit(TableName tableName, List<? extends Row> rows,
-      boolean atLeastOne, Batch.Callback<CResult> callback, boolean needResults)
-      throws InterruptedIOException {
+  public <CResult> AsyncRequestFuture submit(TableName tableName,
+                                             List<? extends Row> rows,
+                                             boolean atLeastOne,
+                                             Batch.Callback<CResult> callback,
+                                             boolean needResults ) throws InterruptedIOException {
     return submit(null, tableName, rows, atLeastOne, callback, needResults);
   }
 
   /**
-   * Extract from the rows list what we can submit. The rows we can not submit are kept in the
-   * list. Does not send requests to replicas (not currently used for anything other
-   * than streaming puts anyway).
+   * Extract from the rows list what we can submit. The rows we can not submit are kept in the list.
+   * Does not send requests to replicas (not currently used for anything other than streaming puts anyway).
    *
    * @param pool ExecutorService to use.
    * @param tableName The table for which this request is needed.
@@ -371,15 +372,17 @@ class AsyncProcess {
    * @param rows - the submitted row. Modified by the method: we remove the rows we took.
    * @param atLeastOne true if we should submit at least a subset.
    */
-  public <CResult> AsyncRequestFuture submit(ExecutorService pool, TableName tableName,
-      List<? extends Row> rows, boolean atLeastOne, Batch.Callback<CResult> callback,
-      boolean needResults) throws InterruptedIOException {
+  public <CResult> AsyncRequestFuture submit(ExecutorService pool,
+                                             TableName tableName,
+                                             List<? extends Row> rows,
+                                             boolean atLeastOne,
+                                             Batch.Callback<CResult> callback,
+                                             boolean needResults) throws InterruptedIOException {
     if (rows.isEmpty()) {
       return NO_REQS_RESULT;
     }
 
-    Map<ServerName, MultiAction<Row>> actionsByServer =
-        new HashMap<ServerName, MultiAction<Row>>();
+    Map<ServerName, MultiAction<Row>> actionsByServer = new HashMap<ServerName, MultiAction<Row>>();
     List<Action<Row>> retainedActions = new ArrayList<Action<Row>>(rows.size());
 
     NonceGenerator ng = this.connection.getNonceGenerator();
@@ -392,8 +395,7 @@ class AsyncProcess {
       // Wait until there is at least one slot for a new task.
       waitForMaximumCurrentTasks(maxTotalConcurrentTasks - 1, tableName.getNameAsString());
 
-      // Remember the previous decisions about regions or region servers we put in the
-      //  final multi.
+      // Remember the previous decisions about regions or region servers we put in the final multi.
       Map<HRegionInfo, Boolean> regionIncluded = new HashMap<HRegionInfo, Boolean>();
       Map<ServerName, Boolean> serverIncluded = new HashMap<ServerName, Boolean>();
 
@@ -401,18 +403,21 @@ class AsyncProcess {
       Iterator<? extends Row> it = rows.iterator();
       while (it.hasNext()) {
         Row r = it.next();
+
+        // 计算row所在的region server
         HRegionLocation loc;
         try {
           if (r == null) {
             throw new IllegalArgumentException("#" + id + ", row cannot be null");
           }
           // Make sure we get 0-s replica.
-          RegionLocations locs = connection.locateRegion(
-              tableName, r.getRow(), true, true, RegionReplicaUtil.DEFAULT_REPLICA_ID);
+          // 获得region所在的位置
+          RegionLocations locs = connection.locateRegion(tableName, r.getRow(), true, true, RegionReplicaUtil.DEFAULT_REPLICA_ID);
+
           if (locs == null || locs.isEmpty() || locs.getDefaultRegionLocation() == null) {
-            throw new IOException("#" + id + ", no location found, aborting submit for"
-                + " tableName=" + tableName + " rowkey=" + Bytes.toStringBinary(r.getRow()));
+            throw new IOException("#" + id + ", no location found, aborting submit for" + " tableName=" + tableName + " rowkey=" + Bytes.toStringBinary(r.getRow()));
           }
+
           loc = locs.getDefaultRegionLocation();
         } catch (IOException ex) {
           locationErrors = new ArrayList<Exception>();
@@ -433,32 +438,39 @@ class AsyncProcess {
           retainedActions.add(action);
           // TODO: replica-get is not supported on this path
           byte[] regionName = loc.getRegionInfo().getRegionName();
+
+          // 加入到对应的region server的action队列中
           addAction(loc.getServerName(), regionName, action, actionsByServer, nonceGroup);
           it.remove();
         }
       }
     } while (retainedActions.isEmpty() && atLeastOne && (locationErrors == null));
 
-    if (retainedActions.isEmpty()) return NO_REQS_RESULT;
+    if (retainedActions.isEmpty()) {
+      return NO_REQS_RESULT;
+    }
 
-    return submitMultiActions(tableName, retainedActions, nonceGroup, callback, null, needResults,
-      locationErrors, locationErrorRows, actionsByServer, pool);
+    return submitMultiActions(tableName, retainedActions, nonceGroup, callback, null, needResults, locationErrors, locationErrorRows, actionsByServer, pool);
   }
 
   <CResult> AsyncRequestFuture submitMultiActions(TableName tableName,
-      List<Action<Row>> retainedActions, long nonceGroup, Batch.Callback<CResult> callback,
-      Object[] results, boolean needResults, List<Exception> locationErrors,
-      List<Integer> locationErrorRows, Map<ServerName, MultiAction<Row>> actionsByServer,
-      ExecutorService pool) {
-    AsyncRequestFutureImpl<CResult> ars = createAsyncRequestFuture(
-      tableName, retainedActions, nonceGroup, pool, callback, results, needResults);
+                                                  List<Action<Row>> retainedActions,
+                                                  long nonceGroup,
+                                                  Batch.Callback<CResult> callback,
+                                                  Object[] results,
+                                                  boolean needResults,
+                                                  List<Exception> locationErrors,
+                                                  List<Integer> locationErrorRows,
+                                                  Map<ServerName, MultiAction<Row>> actionsByServer,
+                                                  ExecutorService pool) {
+
+    AsyncRequestFutureImpl<CResult> ars = createAsyncRequestFuture(tableName, retainedActions, nonceGroup, pool, callback, results, needResults);
     // Add location errors if any
     if (locationErrors != null) {
       for (int i = 0; i < locationErrors.size(); ++i) {
         int originalIndex = locationErrorRows.get(i);
         Row row = retainedActions.get(originalIndex).getAction();
-        ars.manageError(originalIndex, row,
-          Retry.NO_LOCATION_PROBLEM, locationErrors.get(i), null);
+        ars.manageError(originalIndex, row,Retry.NO_LOCATION_PROBLEM, locationErrors.get(i), null);
       }
     }
     ars.sendMultiAction(actionsByServer, 1, null, false);
@@ -605,12 +617,14 @@ class AsyncProcess {
 
   /**
    * The context, and return value, for a single submit/submitAll call.
-   * Note on how this class (one AP submit) works. Initially, all requests are split into groups
-   * by server; request is sent to each server in parallel; the RPC calls are not async so a
-   * thread per server is used. Every time some actions fail, regions/locations might have
-   * changed, so we re-group them by server and region again and send these groups in parallel
-   * too. The result, in case of retries, is a "tree" of threads, with parent exiting after
-   * scheduling children. This is why lots of code doesn't require any synchronization.
+   * Note on how this class (one AP submit) works.
+   * Initially, all requests are split into groups by server;
+   * request is sent to each server in parallel;
+   * the RPC calls are not async so a thread per server is used.
+   * Every time some actions fail, regions/locations might have changed,
+   * so we re-group them by server and region again and send these groups in parallel too.
+   * The result, in case of retries, is a "tree" of threads, with parent exiting after scheduling children.
+   * This is why lots of code doesn't require any synchronization.
    */
   protected class AsyncRequestFutureImpl<CResult> implements AsyncRequestFuture {
 
@@ -999,8 +1013,7 @@ class AsyncProcess {
     }
 
     /**
-     * Send a multi action structure to the servers, after a delay depending on the attempt
-     * number. Asynchronous.
+     * Send a multi action structure to the servers, after a delay depending on the attempt number. Asynchronous.
      *
      * @param actionsByServer the actions structured by regions
      * @param numAttempt the attempt number.
@@ -1015,17 +1028,22 @@ class AsyncProcess {
       for (Map.Entry<ServerName, MultiAction<Row>> e : actionsByServer.entrySet()) {
         ServerName server = e.getKey();
         MultiAction<Row> multiAction = e.getValue();
+
         incTaskCounters(multiAction.getRegions(), server);
-        Collection<? extends Runnable> runnables = getNewMultiActionRunnable(server, multiAction,
-            numAttempt);
-        // make sure we correctly count the number of runnables before we try to reuse the send
-        // thread, in case we had to split the request into different runnables because of backoff
+
+        // 重试次数为1
+        Collection<? extends Runnable> runnables = getNewMultiActionRunnable(server, multiAction, numAttempt);
+
+        // make sure we correctly count the number of runnables before we try to reuse the send thread,
+        // in case we had to split the request into different runnables because of backoff
         if (runnables.size() > actionsRemaining) {
           actionsRemaining = runnables.size();
         }
 
         // run all the runnables
         for (Runnable runnable : runnables) {
+
+          // 是否支持重用线程
           if ((--actionsRemaining == 0) && reuseThread) {
             runnable.run();
           } else {
@@ -1055,9 +1073,15 @@ class AsyncProcess {
       }
     }
 
-    private Collection<? extends Runnable> getNewMultiActionRunnable(ServerName server,
-        MultiAction<Row> multiAction,
-        int numAttempt) {
+    /**
+     * 通过每个服务器和action，获得对应的执行线程
+     *
+     * @param server      regionserver
+     * @param multiAction actions
+     * @param numAttempt  重试次数
+     * @return runnables
+     */
+    private Collection<? extends Runnable> getNewMultiActionRunnable(ServerName server, MultiAction<Row> multiAction, int numAttempt) {
       // no stats to manage, just do the standard action
       if (AsyncProcess.this.connection.getStatisticsTracker() == null) {
         if (connection.getConnectionMetrics() != null) {
@@ -1068,13 +1092,18 @@ class AsyncProcess {
       }
 
       // group the actions by the amount of delay
-      Map<Long, DelayingRunner> actions = new HashMap<Long, DelayingRunner>(multiAction
-          .size());
+      Map<Long, DelayingRunner> actions = new HashMap<Long, DelayingRunner>(multiAction.size());
 
       // split up the actions
+      // 默认相当于不进行action的切分；把action转换成dealyingrunner, 没有背压策略时只有一个
       for (Map.Entry<byte[], List<Action<Row>>> e : multiAction.actions.entrySet()) {
+
+        // 使用参数hbase.client.statistics.backoff-policy控制背压的策略
+        // 默认不使用背压策略，因此只返回 0
         Long backoff = getBackoff(server, e.getKey());
+
         DelayingRunner runner = actions.get(backoff);
+        // 把action分裂成不同的backoff，每个backoff维护自己的ation
         if (runner == null) {
           actions.put(backoff, new DelayingRunner(backoff, e));
         } else {
@@ -1082,12 +1111,14 @@ class AsyncProcess {
         }
       }
 
+      // 默认情况下只有1个runnable
       List<Runnable> toReturn = new ArrayList<Runnable>(actions.size());
       for (DelayingRunner runner : actions.values()) {
         String traceText = "AsyncProcess.sendMultiAction";
-        Runnable runnable =
-            new SingleServerRequestRunnable(runner.getActions(), numAttempt, server,
-                callsInProgress);
+
+        // 创建一个runnable，提交到pool中
+        // 作用：向某个服务器提交多个action
+        Runnable runnable = new SingleServerRequestRunnable(runner.getActions(), numAttempt, server, callsInProgress);
         // use a delay runner only if we need to sleep for some time
         if (runner.getSleepTime() > 0) {
           runner.setRunner(runnable);
@@ -1118,8 +1149,7 @@ class AsyncProcess {
     private Long getBackoff(ServerName server, byte[] regionName) {
       ServerStatisticTracker tracker = AsyncProcess.this.connection.getStatisticsTracker();
       ServerStatistics stats = tracker.getStats(server);
-      return AsyncProcess.this.connection.getBackoffPolicy()
-          .getBackoffTime(server, regionName, stats);
+      return AsyncProcess.this.connection.getBackoffPolicy().getBackoffTime(server, regionName, stats);
     }
 
     /**
@@ -1690,16 +1720,14 @@ class AsyncProcess {
   protected <CResult> AsyncRequestFutureImpl<CResult> createAsyncRequestFuture(
       TableName tableName, List<Action<Row>> actions, long nonceGroup, ExecutorService pool,
       Batch.Callback<CResult> callback, Object[] results, boolean needResults) {
-    return new AsyncRequestFutureImpl<CResult>(
-        tableName, actions, nonceGroup, getPool(pool), needResults, results, callback);
+    return new AsyncRequestFutureImpl<CResult>(tableName, actions, nonceGroup, getPool(pool), needResults, results, callback);
   }
 
   /**
    * Create a callable. Isolated to be easily overridden in the tests.
    */
   @VisibleForTesting
-  protected MultiServerCallable<Row> createCallable(final ServerName server,
-      TableName tableName, final MultiAction<Row> multi) {
+  protected MultiServerCallable<Row> createCallable(final ServerName server, TableName tableName, final MultiAction<Row> multi) {
     return new MultiServerCallable<Row>(connection, tableName, server, this.rpcFactory, multi);
   }
 
@@ -1718,15 +1746,13 @@ class AsyncProcess {
   }
 
   /** Wait until the async does not have more than max tasks in progress. */
-  private void waitForMaximumCurrentTasks(int max, String tableName)
-      throws InterruptedIOException {
+  private void waitForMaximumCurrentTasks(int max, String tableName) throws InterruptedIOException {
     waitForMaximumCurrentTasks(max, tasksInProgress, id, tableName);
   }
 
   // Break out this method so testable
   @VisibleForTesting
-  void waitForMaximumCurrentTasks(int max, final AtomicLong tasksInProgress, final long id,
-      String tableName) throws InterruptedIOException {
+  void waitForMaximumCurrentTasks(int max, final AtomicLong tasksInProgress, final long id, String tableName) throws InterruptedIOException {
     long lastLog = EnvironmentEdgeManager.currentTime();
     long currentInProgress, oldInProgress = Long.MAX_VALUE;
     while ((currentInProgress = tasksInProgress.get()) > max) {
