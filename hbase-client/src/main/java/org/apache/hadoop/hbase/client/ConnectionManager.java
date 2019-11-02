@@ -294,8 +294,7 @@ class ConnectionManager {
   }
 
 
-  static ClusterConnection getConnectionInternal(final Configuration conf)
-    throws IOException {
+  static ClusterConnection getConnectionInternal(final Configuration conf) throws IOException {
     HConnectionKey connectionKey = new HConnectionKey(conf);
     synchronized (CONNECTION_INSTANCES) {
       HConnectionImplementation connection = CONNECTION_INSTANCES.get(connectionKey);
@@ -632,8 +631,7 @@ class ConnectionManager {
       this(conf, managed, null, null);
     }
 
-    HConnectionImplementation(Configuration conf, boolean managed, ExecutorService pool, User user)
-      throws IOException {
+    HConnectionImplementation(Configuration conf, boolean managed, ExecutorService pool, User user) throws IOException {
       this(conf, managed, pool, user, null);
     }
 
@@ -650,27 +648,34 @@ class ConnectionManager {
      */
     HConnectionImplementation(Configuration conf, boolean managed, ExecutorService pool, User user, String clusterId) throws IOException {
       this(conf);
+
+      // 默认为null
       this.clusterId = clusterId;
+      // 走的默认的hadoop账号
       this.user = user;
+      // 目前是空
       this.batchPool = pool;
+
+      // 如果为true,则不会完全关闭；清理zk连接；关闭所有服务。只会关闭资源，减少计数器。
+      // 当共享连接时，会重用zk连接，继续使用相关计数器即可。
       this.managed = managed;
+
       this.registry = setupRegistry();
+
       retrieveClusterId();
 
       this.rpcClient = RpcClientFactory.createClient(this.conf, this.clusterId, this.metrics);
       this.rpcControllerFactory = RpcControllerFactory.instantiate(conf);
 
       // Do we publish the status?
-      boolean shouldListen = conf.getBoolean(HConstants.STATUS_PUBLISHED,
-          HConstants.STATUS_PUBLISHED_DEFAULT);
-      Class<? extends ClusterStatusListener.Listener> listenerClass =
-          conf.getClass(ClusterStatusListener.STATUS_LISTENER_CLASS,
+      boolean shouldListen = conf.getBoolean(HConstants.STATUS_PUBLISHED, HConstants.STATUS_PUBLISHED_DEFAULT);
+      Class<? extends ClusterStatusListener.Listener> listenerClass = conf.getClass(ClusterStatusListener.STATUS_LISTENER_CLASS,
               ClusterStatusListener.DEFAULT_STATUS_LISTENER_CLASS,
               ClusterStatusListener.Listener.class);
+
       if (shouldListen) {
         if (listenerClass == null) {
-          LOG.warn(HConstants.STATUS_PUBLISHED + " is true, but " +
-              ClusterStatusListener.STATUS_LISTENER_CLASS + " is not set - not listening status");
+          LOG.warn(HConstants.STATUS_PUBLISHED + " is true, but " + ClusterStatusListener.STATUS_LISTENER_CLASS + " is not set - not listening status");
         } else {
           clusterStatusListener = new ClusterStatusListener(
               new ClusterStatusListener.DeadServerHandler() {
@@ -691,14 +696,10 @@ class ConnectionManager {
       this.conf = conf;
       this.connectionConfig = new ConnectionConfiguration(conf);
       this.closed = false;
-      this.pause = conf.getLong(HConstants.HBASE_CLIENT_PAUSE,
-          HConstants.DEFAULT_HBASE_CLIENT_PAUSE);
-      this.useMetaReplicas = conf.getBoolean(HConstants.USE_META_REPLICAS,
-          HConstants.DEFAULT_USE_META_REPLICAS);
+      this.pause = conf.getLong(HConstants.HBASE_CLIENT_PAUSE, HConstants.DEFAULT_HBASE_CLIENT_PAUSE);
+      this.useMetaReplicas = conf.getBoolean(HConstants.USE_META_REPLICAS, HConstants.DEFAULT_USE_META_REPLICAS);
       this.numTries = connectionConfig.getRetriesNumber();
-      this.rpcTimeout = conf.getInt(
-          HConstants.HBASE_RPC_TIMEOUT_KEY,
-          HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+      this.rpcTimeout = conf.getInt(HConstants.HBASE_RPC_TIMEOUT_KEY, HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
       if (conf.getBoolean(CLIENT_NONCES_ENABLED_KEY, true)) {
         synchronized (nonceGeneratorCreateLock) {
           if (ConnectionManager.nonceGenerator == null) {
@@ -797,12 +798,18 @@ class ConnectionManager {
       return this.metrics;
     }
 
+    /**
+     * 创建默认的连接池, 线程数256，核数256
+     * 关于线程池的创建：https://www.jianshu.com/p/f030aa5d7a28
+     *
+     * @return r
+     */
     private ExecutorService getBatchPool() {
       if (batchPool == null) {
         synchronized (this) {
           if (batchPool == null) {
             this.batchPool = getThreadPool(conf.getInt("hbase.hconnection.threads.max", 256),
-                conf.getInt("hbase.hconnection.threads.core", 256), "-shared-", null);
+                    conf.getInt("hbase.hconnection.threads.core", 256), "-shared-", null);
             this.cleanupPool = true;
           }
         }
@@ -810,8 +817,16 @@ class ConnectionManager {
       return this.batchPool;
     }
 
-    private ExecutorService getThreadPool(int maxThreads, int coreThreads, String nameHint,
-        BlockingQueue<Runnable> passedWorkQueue) {
+    /**
+     * 默认配置
+     *
+     * @param maxThreads      256， 如果为0则为系统可用核数*8
+     * @param coreThreads     256
+     * @param nameHint        -shared-
+     * @param passedWorkQueue null
+     * @return
+     */
+    private ExecutorService getThreadPool(int maxThreads, int coreThreads, String nameHint, BlockingQueue<Runnable> passedWorkQueue) {
       // shared HTable thread executor not yet initialized
       if (maxThreads == 0) {
         maxThreads = Runtime.getRuntime().availableProcessors() * 8;
@@ -820,13 +835,23 @@ class ConnectionManager {
         coreThreads = Runtime.getRuntime().availableProcessors() * 8;
       }
       long keepAliveTime = conf.getLong("hbase.hconnection.threads.keepalivetime", 60);
+
       BlockingQueue<Runnable> workQueue = passedWorkQueue;
       if (workQueue == null) {
-        workQueue =
-          new LinkedBlockingQueue<Runnable>(maxThreads *
-              conf.getInt(HConstants.HBASE_CLIENT_MAX_TOTAL_TASKS,
-                  HConstants.DEFAULT_HBASE_CLIENT_MAX_TOTAL_TASKS));
+        // hbase.client.max.total.tasks 配置， 默认100*8*4
+        workQueue = new LinkedBlockingQueue<Runnable>(
+                maxThreads
+                        *
+                        conf.getInt(HConstants.HBASE_CLIENT_MAX_TOTAL_TASKS, HConstants.DEFAULT_HBASE_CLIENT_MAX_TOTAL_TASKS));
       }
+
+      /**
+       * coreThreads: 核心线程池的大小
+       * maxThreads: 最大线程池的大小
+       * keepAliveTime: 线程最大的空闲时间, 60s
+       * workQueue: 线程等待队列
+       * threadFactory：线程创建工厂
+       */
       ThreadPoolExecutor tpe = new ThreadPoolExecutor(
           coreThreads,
           maxThreads,
@@ -834,6 +859,7 @@ class ConnectionManager {
           TimeUnit.SECONDS,
           workQueue,
           Threads.newDaemonThreadFactory(toString() + nameHint));
+
       tpe.allowCoreThreadTimeOut(true);
       return tpe;
     }

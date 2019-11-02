@@ -145,8 +145,7 @@ public class ConnectionFactory {
    * @param pool the thread pool to use for batch operations
    * @return Connection object for <code>conf</code>
    */
-  public static Connection createConnection(Configuration conf, ExecutorService pool)
-      throws IOException {
+  public static Connection createConnection(Configuration conf, ExecutorService pool) throws IOException {
     return createConnection(conf, pool, null);
   }
 
@@ -208,21 +207,21 @@ public class ConnectionFactory {
    * @param pool the thread pool to use for batch operations
    * @return Connection object for <code>conf</code>
    */
-  public static Connection createConnection(Configuration conf, ExecutorService pool, User user)
-  throws IOException {
+  public static Connection createConnection(Configuration conf, ExecutorService pool, User user) throws IOException {
+    // 如果user为空，则通过hbase.client.userprovider.class指定的class反射获得用户
+
     if (user == null) {
       UserProvider provider = UserProvider.instantiate(conf);
       user = provider.getCurrent();
     }
 
+    // 创建连接池
     return createConnection(conf, false, pool, user);
   }
 
-  static Connection createConnection(final Configuration conf, final boolean managed,
-      final ExecutorService pool, final User user)
-  throws IOException {
-    String className = conf.get(HConnection.HBASE_CLIENT_CONNECTION_IMPL,
-      ConnectionManager.HConnectionImplementation.class.getName());
+  static Connection createConnection(final Configuration conf, final boolean managed, final ExecutorService pool, final User user) throws IOException {
+    // 获取 hbase.client.connection.impl 配置的类，如果加载不到则使用 ConnectionManager.HConnectionImplementation
+    String className = conf.get(HConnection.HBASE_CLIENT_CONNECTION_IMPL, ConnectionManager.HConnectionImplementation.class.getName());
     Class<?> clazz = null;
     try {
       clazz = Class.forName(className);
@@ -230,10 +229,9 @@ public class ConnectionFactory {
       throw new IOException(e);
     }
     try {
+      // 获取四个参数的构造方法，然后配置可执行，最后通过构造方法创建实例对象
       // Default HCM#HCI is not accessible; make it so before invoking.
-      Constructor<?> constructor =
-        clazz.getDeclaredConstructor(Configuration.class,
-          boolean.class, ExecutorService.class, User.class);
+      Constructor<?> constructor = clazz.getDeclaredConstructor(Configuration.class, boolean.class, ExecutorService.class, User.class);
       constructor.setAccessible(true);
       return (Connection) constructor.newInstance(conf, managed, pool, user);
     } catch (Exception e) {

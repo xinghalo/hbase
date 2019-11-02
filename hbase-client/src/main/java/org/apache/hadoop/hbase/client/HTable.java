@@ -833,6 +833,7 @@ public class HTable implements HTableInterface, RegionLocator {
 
   private Result get(Get get, final boolean checkExistenceOnly) throws IOException {
     // if we are changing settings to the get, clone it.
+    // 如果配置get为仅判断存不存在，那么需要通过反射的方式配置。
     if (get.isCheckExistenceOnly() != checkExistenceOnly || get.getConsistency() == null) {
       get = ReflectionUtils.newInstance(get.getClass(), get);
       get.setCheckExistenceOnly(checkExistenceOnly);
@@ -844,15 +845,17 @@ public class HTable implements HTableInterface, RegionLocator {
     if (get.getConsistency() == Consistency.STRONG) {
       // Good old call.
       final Get getReq = get;
-      RegionServerCallable<Result> callable = new RegionServerCallable<Result>(this.connection,
-          getName(), get.getRow()) {
+
+      RegionServerCallable<Result> callable = new RegionServerCallable<Result>(this.connection, getName(), get.getRow()) {
         @Override
         public Result call(int callTimeout) throws IOException {
-          ClientProtos.GetRequest request =
-            RequestConverter.buildGetRequest(getLocation().getRegionInfo().getRegionName(), getReq);
+
+          // 向指定的region发送get请求
+          ClientProtos.GetRequest request = RequestConverter.buildGetRequest(getLocation().getRegionInfo().getRegionName(), getReq);
           PayloadCarryingRpcController controller = rpcControllerFactory.newController();
           controller.setPriority(tableName);
           controller.setCallTimeout(callTimeout);
+
           try {
             ClientProtos.GetResponse response = getStub().get(controller, request);
             if (response == null) return null;
@@ -862,8 +865,8 @@ public class HTable implements HTableInterface, RegionLocator {
           }
         }
       };
-      return rpcCallerFactory.<Result>newCaller(rpcTimeout).callWithRetries(callable,
-          this.operationTimeout);
+
+      return rpcCallerFactory.<Result>newCaller(rpcTimeout).callWithRetries(callable, this.operationTimeout);
     }
 
     // Call that takes into account the replica
@@ -959,10 +962,8 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@inheritDoc}
    */
   @Override
-  public void delete(final Delete delete)
-  throws IOException {
-    RegionServerCallable<Boolean> callable = new RegionServerCallable<Boolean>(connection,
-        tableName, delete.getRow()) {
+  public void delete(final Delete delete) throws IOException {
+    RegionServerCallable<Boolean> callable = new RegionServerCallable<Boolean>(connection, tableName, delete.getRow()) {
       @Override
       public Boolean call(int callTimeout) throws IOException {
         PayloadCarryingRpcController controller = rpcControllerFactory.newController();
@@ -979,8 +980,7 @@ public class HTable implements HTableInterface, RegionLocator {
         }
       }
     };
-    rpcCallerFactory.<Boolean> newCaller(rpcTimeout).callWithRetries(callable,
-        this.operationTimeout);
+    rpcCallerFactory.<Boolean> newCaller(rpcTimeout).callWithRetries(callable, this.operationTimeout);
   }
 
   /**

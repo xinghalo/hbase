@@ -119,8 +119,7 @@ public class UserProvider extends BaseConfigurable {
    * @return a {@link UserProvider} ready for use.
    */
   public static UserProvider instantiate(Configuration conf) {
-    Class<? extends UserProvider> clazz =
-        conf.getClass(USER_PROVIDER_CONF_KEY, UserProvider.class, UserProvider.class);
+    Class<? extends UserProvider> clazz = conf.getClass(USER_PROVIDER_CONF_KEY, UserProvider.class, UserProvider.class);
     return ReflectionUtils.newInstance(clazz, conf);
   }
 

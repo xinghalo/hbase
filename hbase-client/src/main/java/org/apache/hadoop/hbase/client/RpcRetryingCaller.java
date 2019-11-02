@@ -122,16 +122,16 @@ public class RpcRetryingCaller<T> {
    * @throws IOException if a remote or network exception occurs
    * @throws RuntimeException other unspecified error
    */
-  public T callWithRetries(RetryingCallable<T> callable, int callTimeout)
-  throws IOException, RuntimeException {
-    List<RetriesExhaustedException.ThrowableWithExtraContext> exceptions =
-      new ArrayList<RetriesExhaustedException.ThrowableWithExtraContext>();
+  public T callWithRetries(RetryingCallable<T> callable, int callTimeout) throws IOException, RuntimeException {
+    List<RetriesExhaustedException.ThrowableWithExtraContext> exceptions = new ArrayList<RetriesExhaustedException.ThrowableWithExtraContext>();
     this.globalStartTime = EnvironmentEdgeManager.currentTime();
     context.clear();
+
     for (int tries = 0;; tries++) {
       long expectedSleep;
       try {
-        callable.prepare(tries != 0); // if called with false, check table status on ZK
+        callable.prepare(tries != 0);
+        // if called with false, check table status on ZK
         interceptor.intercept(context.prepare(callable, tries));
         return callable.call(getTimeout(callTimeout));
       } catch (PreemptiveFastFailException e) {

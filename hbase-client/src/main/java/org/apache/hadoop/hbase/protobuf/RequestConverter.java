@@ -162,11 +162,9 @@ public final class RequestConverter {
    * @param get the client Get
    * @return a protocol buffer GetRequest
    */
-  public static GetRequest buildGetRequest(final byte[] regionName,
-      final Get get) throws IOException {
+  public static GetRequest buildGetRequest(final byte[] regionName, final Get get) throws IOException {
     GetRequest.Builder builder = GetRequest.newBuilder();
-    RegionSpecifier region = buildRegionSpecifier(
-      RegionSpecifierType.REGION_NAME, regionName);
+    RegionSpecifier region = buildRegionSpecifier(RegionSpecifierType.REGION_NAME, regionName);
     builder.setRegion(region);
     builder.setGet(ProtobufUtil.toGet(get));
     return builder.build();

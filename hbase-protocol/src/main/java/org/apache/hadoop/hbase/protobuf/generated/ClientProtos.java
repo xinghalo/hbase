@@ -6082,29 +6082,31 @@ public final class ClientProtos {
    * The get request. Perform a single Get operation.
    * </pre>
    */
-  public static final class GetRequest extends
-      com.google.protobuf.GeneratedMessage
-      implements GetRequestOrBuilder {
+  public static final class GetRequest extends com.google.protobuf.GeneratedMessage implements GetRequestOrBuilder {
     // Use GetRequest.newBuilder() to construct.
     private GetRequest(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
       super(builder);
       this.unknownFields = builder.getUnknownFields();
     }
-    private GetRequest(boolean noInit) { this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance(); }
+
+    private GetRequest(boolean noInit) {
+        this.unknownFields = com.google.protobuf.UnknownFieldSet.getDefaultInstance();
+    }
 
     private static final GetRequest defaultInstance;
+
     public static GetRequest getDefaultInstance() {
       return defaultInstance;
     }
 
+    @java.lang.Override
     public GetRequest getDefaultInstanceForType() {
       return defaultInstance;
     }
 
     private final com.google.protobuf.UnknownFieldSet unknownFields;
     @java.lang.Override
-    public final com.google.protobuf.UnknownFieldSet
-        getUnknownFields() {
+    public final com.google.protobuf.UnknownFieldSet getUnknownFields() {
       return this.unknownFields;
     }
     private GetRequest(
