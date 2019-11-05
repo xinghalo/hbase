@@ -479,24 +479,21 @@ public class MetaTableLocator {
    * @return regionstate
    * @throws KeeperException
    */
-  public static RegionState getMetaRegionState(ZooKeeperWatcher zkw, int replicaId)
-      throws KeeperException {
+  public static RegionState getMetaRegionState(ZooKeeperWatcher zkw, int replicaId) throws KeeperException {
     RegionState.State state = RegionState.State.OPEN;
     ServerName serverName = null;
     try {
+      // ZKUtil.getData(zkw, "meta-region-server")
       byte[] data = ZKUtil.getData(zkw, zkw.getZNodeForReplica(replicaId));
       if (data != null && data.length > 0 && ProtobufUtil.isPBMagicPrefix(data)) {
         try {
           int prefixLen = ProtobufUtil.lengthOfPBMagic();
-          ZooKeeperProtos.MetaRegionServer rl =
-            ZooKeeperProtos.MetaRegionServer.PARSER.parseFrom
-              (data, prefixLen, data.length - prefixLen);
+          ZooKeeperProtos.MetaRegionServer rl = ZooKeeperProtos.MetaRegionServer.PARSER.parseFrom(data, prefixLen, data.length - prefixLen);
           if (rl.hasState()) {
             state = RegionState.State.convert(rl.getState());
           }
           HBaseProtos.ServerName sn = rl.getServer();
-          serverName = ServerName.valueOf(
-            sn.getHostName(), sn.getPort(), sn.getStartCode());
+          serverName = ServerName.valueOf(sn.getHostName(), sn.getPort(), sn.getStartCode());
         } catch (InvalidProtocolBufferException e) {
           throw new DeserializationException("Unable to parse meta region location");
         }
@@ -512,9 +509,7 @@ public class MetaTableLocator {
     if (serverName == null) {
       state = RegionState.State.OFFLINE;
     }
-    return new RegionState(
-        RegionReplicaUtil.getRegionInfoForReplica(HRegionInfo.FIRST_META_REGIONINFO, replicaId),
-      state, serverName);
+    return new RegionState(RegionReplicaUtil.getRegionInfoForReplica(HRegionInfo.FIRST_META_REGIONINFO, replicaId), state, serverName);
   }
 
   /**
@@ -550,19 +545,18 @@ public class MetaTableLocator {
    * @return ServerName or null if we timed out.
    * @throws InterruptedException
    */
-  public List<ServerName> blockUntilAvailable(final ZooKeeperWatcher zkw,
-      final long timeout, Configuration conf)
-          throws InterruptedException {
+  public List<ServerName> blockUntilAvailable(final ZooKeeperWatcher zkw, final long timeout, Configuration conf) throws InterruptedException {
     int numReplicasConfigured = 1;
 
     List<ServerName> servers = new ArrayList<ServerName>();
-    // Make the blocking call first so that we do the wait to know
-    // the znodes are all in place or timeout.
+    // Make the blocking call first so that we do the wait to know the znodes are all in place or timeout.
+    // 阻塞调用zk，获得meta-region-server位置
     ServerName server = blockUntilAvailable(zkw, timeout);
     if (server == null) return null;
     servers.add(server);
 
     try {
+      // 获取meta-region-server的备份节点
       List<String> metaReplicaNodes = zkw.getMetaReplicaNodes();
       numReplicasConfigured = metaReplicaNodes.size();
     } catch (KeeperException e) {
@@ -582,9 +576,7 @@ public class MetaTableLocator {
    * @return ServerName or null if we timed out.
    * @throws InterruptedException
    */
-  public ServerName blockUntilAvailable(final ZooKeeperWatcher zkw,
-      final long timeout)
-  throws InterruptedException {
+  public ServerName blockUntilAvailable(final ZooKeeperWatcher zkw, final long timeout) throws InterruptedException {
     return blockUntilAvailable(zkw, HRegionInfo.DEFAULT_REPLICA_ID, timeout);
   }
 
@@ -596,20 +588,19 @@ public class MetaTableLocator {
    * @return ServerName or null if we timed out.
    * @throws InterruptedException
    */
-  public ServerName blockUntilAvailable(final ZooKeeperWatcher zkw, int replicaId,
-      final long timeout)
-  throws InterruptedException {
+  public ServerName blockUntilAvailable(final ZooKeeperWatcher zkw, int replicaId, final long timeout) throws InterruptedException {
     if (timeout < 0) throw new IllegalArgumentException();
     if (zkw == null) throw new IllegalArgumentException();
+
     Stopwatch sw = new Stopwatch().start();
     ServerName sn = null;
     try {
       while (true) {
         sn = getMetaRegionLocation(zkw, replicaId);
-        if (sn != null || sw.elapsedMillis()
-            > timeout - HConstants.SOCKET_RETRY_WAIT_MS) {
+        if (sn != null || sw.elapsedMillis() > timeout - HConstants.SOCKET_RETRY_WAIT_MS) {
           break;
         }
+        // 200毫秒后重试
         Thread.sleep(HConstants.SOCKET_RETRY_WAIT_MS);
       }
     } finally {

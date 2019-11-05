@@ -189,13 +189,11 @@ public class RegionState {
     this(region, state, System.currentTimeMillis(), null);
   }
 
-  public RegionState(HRegionInfo region,
-      State state, ServerName serverName) {
+  public RegionState(HRegionInfo region, State state, ServerName serverName) {
     this(region, state, System.currentTimeMillis(), serverName);
   }
 
-  public RegionState(HRegionInfo region,
-      State state, long stamp, ServerName serverName) {
+  public RegionState(HRegionInfo region,State state, long stamp, ServerName serverName) {
     this.hri = region;
     this.state = state;
     this.stamp = new AtomicLong(stamp);

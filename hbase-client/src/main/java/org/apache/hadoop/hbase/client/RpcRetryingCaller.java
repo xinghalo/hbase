@@ -201,8 +201,7 @@ public class RpcRetryingCaller<T> {
    * @throws IOException if a remote or network exception occurs
    * @throws RuntimeException other unspecified error
    */
-  public T callWithoutRetries(RetryingCallable<T> callable, int callTimeout)
-  throws IOException, RuntimeException {
+  public T callWithoutRetries(RetryingCallable<T> callable, int callTimeout) throws IOException, RuntimeException {
     // The code of this method should be shared with withRetries.
     this.globalStartTime = EnvironmentEdgeManager.currentTime();
     try {

@@ -50,6 +50,12 @@ class ZooKeeperRegistry implements Registry {
     this.hci = (ConnectionManager.HConnectionImplementation)connection;
   }
 
+  /**
+   * 查询元数据位置信息
+   *
+   * @return
+   * @throws IOException
+   */
   @Override
   public RegionLocations getMetaRegionLocation() throws IOException {
     ZooKeeperKeepAliveConnection zkw = hci.getKeepAliveZooKeeperWatcher();
@@ -58,25 +64,30 @@ class ZooKeeperRegistry implements Registry {
       if (LOG.isTraceEnabled()) {
         LOG.trace("Looking up meta region location in ZK," + " connection=" + this);
       }
+
+      // 获取meta所在的rs，如果存在meta-region-server-xxx，也加入到rs中
       List<ServerName> servers = new MetaTableLocator().blockUntilAvailable(zkw, hci.rpcTimeout, hci.getConfiguration());
       if (LOG.isTraceEnabled()) {
         if (servers == null) {
-          LOG.trace("Looked up meta region location, connection=" + this +
-            "; servers = null");
+          LOG.trace("Looked up meta region location, connection=" + this + "; servers = null");
         } else {
           StringBuilder str = new StringBuilder();
           for (ServerName s : servers) {
             str.append(s.toString());
             str.append(" ");
           }
-          LOG.trace("Looked up meta region location, connection=" + this +
-            "; servers = " + str.toString());
+          LOG.trace("Looked up meta region location, connection=" + this + "; servers = " + str.toString());
         }
       }
-      if (servers == null) return null;
+
+      if (servers == null) {
+        return null;
+      }
+
       HRegionLocation[] locs = new HRegionLocation[servers.size()];
       int i = 0;
       for (ServerName server : servers) {
+        // 配置默认的region信息
         HRegionInfo h = RegionReplicaUtil.getRegionInfoForReplica(HRegionInfo.FIRST_META_REGIONINFO, i);
         if (server == null) locs[i++] = null;
         else locs[i++] = new HRegionLocation(h, server, 0);

@@ -73,9 +73,9 @@ public abstract class RegionServerCallable<T> implements RetryingCallable<T> {
       this.location = regionLocator.getRegionLocation(row, reload);
     }
     if (this.location == null) {
-      throw new IOException("Failed to find location, tableName=" + tableName +
-        ", row=" + Bytes.toString(row) + ", reload=" + reload);
+      throw new IOException("Failed to find location, tableName=" + tableName + ", row=" + Bytes.toString(row) + ", reload=" + reload);
     }
+    // ClientService.BlockingInterface
     setStub(getConnection().getClient(this.location.getServerName()));
   }
 

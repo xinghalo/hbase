@@ -316,9 +316,7 @@ public class ClientScanner extends AbstractClientScanner {
     return callable.isAnyRPCcancelled();
   }
 
-  Result[] call(ScannerCallableWithReplicas callable,
-      RpcRetryingCaller<Result[]> caller, int scannerTimeout)
-      throws IOException, RuntimeException {
+  Result[] call(ScannerCallableWithReplicas callable, RpcRetryingCaller<Result[]> caller, int scannerTimeout) throws IOException, RuntimeException {
     if (Thread.interrupted()) {
       throw new InterruptedIOException();
     }
@@ -328,16 +326,14 @@ public class ClientScanner extends AbstractClientScanner {
   }
 
     @InterfaceAudience.Private
-    protected ScannerCallableWithReplicas getScannerCallable(byte [] localStartKey,
-        int nbRows) {
+    protected ScannerCallableWithReplicas getScannerCallable(byte [] localStartKey, int nbRows) {
       scan.setStartRow(localStartKey);
-      ScannerCallable s =
-          new ScannerCallable(getConnection(), getTable(), scan, this.scanMetrics,
-              this.rpcControllerFactory);
+      // 创建rpc调用，其中准备工作都在prepare里面
+      ScannerCallable s = new ScannerCallable(getConnection(), getTable(), scan, this.scanMetrics, this.rpcControllerFactory);
       s.setCaching(nbRows);
       ScannerCallableWithReplicas sr = new ScannerCallableWithReplicas(tableName, getConnection(),
-       s, pool, primaryOperationTimeout, scan,
-       retries, scannerTimeout, caching, conf, caller);
+              s, pool, primaryOperationTimeout, scan,
+              retries, scannerTimeout, caching, conf, caller);
       return sr;
     }
 

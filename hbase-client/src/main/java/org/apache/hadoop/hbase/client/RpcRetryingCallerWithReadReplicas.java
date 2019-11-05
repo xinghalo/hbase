@@ -300,6 +300,7 @@ public class RpcRetryingCallerWithReadReplicas {
     RegionLocations rl;
     try {
       if (useCache) {
+        // 查询row所在的region
         rl = cConnection.locateRegion(tableName, row, true, true, replicaId);
       } else {
         rl = cConnection.relocateRegion(tableName, row, replicaId);

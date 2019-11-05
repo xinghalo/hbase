@@ -45,11 +45,12 @@ public class ExponentialClientBackoffPolicy implements ClientBackoffPolicy {
   private float heapOccupancyHighWatermark;
 
   public ExponentialClientBackoffPolicy(Configuration conf) {
+    // 默认 5 * 60 * 1000
     this.maxBackoff = conf.getLong(MAX_BACKOFF_KEY, DEFAULT_MAX_BACKOFF);
-    this.heapOccupancyLowWatermark = conf.getFloat(HConstants.HEAP_OCCUPANCY_LOW_WATERMARK_KEY,
-      HConstants.DEFAULT_HEAP_OCCUPANCY_LOW_WATERMARK);
-    this.heapOccupancyHighWatermark = conf.getFloat(HConstants.HEAP_OCCUPANCY_HIGH_WATERMARK_KEY,
-      HConstants.DEFAULT_HEAP_OCCUPANCY_HIGH_WATERMARK);
+    // 堆低水位 0.95f
+    this.heapOccupancyLowWatermark = conf.getFloat(HConstants.HEAP_OCCUPANCY_LOW_WATERMARK_KEY, HConstants.DEFAULT_HEAP_OCCUPANCY_LOW_WATERMARK);
+    // 堆高水位 0.98f
+    this.heapOccupancyHighWatermark = conf.getFloat(HConstants.HEAP_OCCUPANCY_HIGH_WATERMARK_KEY, HConstants.DEFAULT_HEAP_OCCUPANCY_HIGH_WATERMARK);
   }
 
   @Override
@@ -66,22 +67,23 @@ public class ExponentialClientBackoffPolicy implements ClientBackoffPolicy {
     }
 
     // Factor in memstore load
+    // memstore的负载
     double percent = regionStats.getMemstoreLoadPercent() / 100.0;
 
     // Factor in heap occupancy
+    // 堆内存使用的负载
     float heapOccupancy = regionStats.getHeapOccupancyPercent() / 100.0f;
 
     // Factor in compaction pressure, 1.0 means heavy compaction pressure
+    // compaction的压力
     float compactionPressure = regionStats.getCompactionPressure() / 100.0f;
+
     if (heapOccupancy >= heapOccupancyLowWatermark) {
-      // If we are higher than the high watermark, we are already applying max
-      // backoff and cannot scale more (see scale() below)
+      // If we are higher than the high watermark, we are already applying max backoff and cannot scale more (see scale() below)
       if (heapOccupancy > heapOccupancyHighWatermark) {
         heapOccupancy = heapOccupancyHighWatermark;
       }
-      percent = Math.max(percent,
-          scale(heapOccupancy, heapOccupancyLowWatermark, heapOccupancyHighWatermark,
-              0.1, 1.0));
+      percent = Math.max(percent,scale(heapOccupancy, heapOccupancyLowWatermark, heapOccupancyHighWatermark,0.1, 1.0));
     }
     percent = Math.max(percent, compactionPressure);
     // square the percent as a value less than 1. Closer we move to 100 percent,
@@ -93,15 +95,22 @@ public class ExponentialClientBackoffPolicy implements ClientBackoffPolicy {
     return (long) (multiplier * maxBackoff);
   }
 
-  /** Scale valueIn in the range [baseMin,baseMax] to the range [limitMin,limitMax] */
-  private static double scale(double valueIn, double baseMin, double baseMax, double limitMin,
-      double limitMax) {
-    Preconditions.checkArgument(baseMin <= baseMax, "Illegal source range [%s,%s]",
-        baseMin, baseMax);
-    Preconditions.checkArgument(limitMin <= limitMax, "Illegal target range [%s,%s]",
-        limitMin, limitMax);
-    Preconditions.checkArgument(valueIn >= baseMin && valueIn <= baseMax,
-        "Value %s must be within the range [%s,%s]", valueIn, baseMin, baseMax);
+  /**
+   * 执行归一化，把堆使用占比，转化成0.1-1之间
+   *
+   * Scale valueIn in the range [baseMin,baseMax] to the range [limitMin,limitMax]
+   *
+   * @param valueIn
+   * @param baseMin
+   * @param baseMax
+   * @param limitMin
+   * @param limitMax
+   * @return r
+   */
+  private static double scale(double valueIn, double baseMin, double baseMax, double limitMin, double limitMax) {
+    Preconditions.checkArgument(baseMin <= baseMax, "Illegal source range [%s,%s]", baseMin, baseMax);
+    Preconditions.checkArgument(limitMin <= limitMax, "Illegal target range [%s,%s]", limitMin, limitMax);
+    Preconditions.checkArgument(valueIn >= baseMin && valueIn <= baseMax,"Value %s must be within the range [%s,%s]", valueIn, baseMin, baseMax);
     return ((limitMax - limitMin) * (valueIn - baseMin) / (baseMax - baseMin)) + limitMin;
   }
 }

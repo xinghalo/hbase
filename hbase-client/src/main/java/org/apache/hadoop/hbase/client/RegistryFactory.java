@@ -32,8 +32,7 @@ class RegistryFactory {
    */
   static Registry getRegistry(final Connection connection)
   throws IOException {
-    String registryClass = connection.getConfiguration().get("hbase.client.registry.impl",
-      ZooKeeperRegistry.class.getName());
+    String registryClass = connection.getConfiguration().get("hbase.client.registry.impl", ZooKeeperRegistry.class.getName());
     Registry registry = null;
     try {
       registry = (Registry)Class.forName(registryClass).newInstance();

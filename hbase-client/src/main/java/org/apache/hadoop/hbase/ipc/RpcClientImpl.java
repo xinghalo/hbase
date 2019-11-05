@@ -104,39 +104,36 @@ import com.google.protobuf.RpcCallback;
 
 /**
  * Does RPC against a cluster.  Manages connections per regionserver in the cluster.
+ * 参考资料：https://www.cnblogs.com/superhedantou/p/6476421.html
  * <p>See HBaseServer
  */
 @InterfaceAudience.Private
 public class RpcClientImpl extends AbstractRpcClient {
   private static final Log LOG = LogFactory.getLog(RpcClientImpl.class);
+
   protected final AtomicInteger callIdCnt = new AtomicInteger();
 
   protected final PoolMap<ConnectionId, Connection> connections;
 
-  protected final AtomicBoolean running = new AtomicBoolean(true); // if client runs
+  // if client runs
+  protected final AtomicBoolean running = new AtomicBoolean(true);
 
   protected final FailedServers failedServers;
 
-  protected final SocketFactory socketFactory;           // how to create sockets
+  // how to create sockets
+  protected final SocketFactory socketFactory;
 
-  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="MS_MUTABLE_COLLECTION_PKGPROTECT",
-      justification="the rest of the system which live in the different package can use")
-  protected final static Map<AuthenticationProtos.TokenIdentifier.Kind,
-      TokenSelector<? extends TokenIdentifier>> tokenHandlers =
-      new HashMap<AuthenticationProtos.TokenIdentifier.Kind,
-        TokenSelector<? extends TokenIdentifier>>();
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="MS_MUTABLE_COLLECTION_PKGPROTECT", justification="the rest of the system which live in the different package can use")
+  protected final static Map<AuthenticationProtos.TokenIdentifier.Kind, TokenSelector<? extends TokenIdentifier>> tokenHandlers = new HashMap<AuthenticationProtos.TokenIdentifier.Kind,TokenSelector<? extends TokenIdentifier>>();
   static {
-    tokenHandlers.put(AuthenticationProtos.TokenIdentifier.Kind.HBASE_AUTH_TOKEN,
-        new AuthenticationTokenSelector());
+    tokenHandlers.put(AuthenticationProtos.TokenIdentifier.Kind.HBASE_AUTH_TOKEN, new AuthenticationTokenSelector());
   }
 
   /**
    * Creates a connection. Can be overridden by a subclass for testing.
    * @param remoteId - the ConnectionId to use for the connection creation.
    */
-  protected Connection createConnection(ConnectionId remoteId, final Codec codec,
-      final CompressionCodec compressor)
-  throws IOException {
+  protected Connection createConnection(ConnectionId remoteId, final Codec codec, final CompressionCodec compressor) throws IOException {
     return new Connection(remoteId, codec, compressor);
   }
 
@@ -179,8 +176,7 @@ public class RpcClientImpl extends AbstractRpcClient {
     private final CompressionCodec compressor;
 
     // currently active calls
-    protected final ConcurrentSkipListMap<Integer, Call> calls =
-      new ConcurrentSkipListMap<Integer, Call>();
+    protected final ConcurrentSkipListMap<Integer, Call> calls = new ConcurrentSkipListMap<Integer, Call>();
 
     protected final AtomicBoolean shouldCloseConnection = new AtomicBoolean();
     protected final CallSender callSender;

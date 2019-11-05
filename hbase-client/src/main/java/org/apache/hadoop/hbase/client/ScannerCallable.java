@@ -151,6 +151,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
     if (Thread.interrupted()) {
       throw new InterruptedIOException();
     }
+    // 查询region位置信息
     RegionLocations rl = RpcRetryingCallerWithReadReplicas.getRegionLocations(!reload,
         id, getConnection(), getTableName(), getRow());
     location = id < rl.size() ? rl.getRegionLocation(id) : null;

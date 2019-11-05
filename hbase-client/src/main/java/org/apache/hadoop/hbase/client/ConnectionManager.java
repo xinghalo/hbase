@@ -660,6 +660,7 @@ class ConnectionManager {
       // 当共享连接时，会重用zk连接，继续使用相关计数器即可。
       this.managed = managed;
 
+      // 启动zk监听器，参数配置：hbase.client.registry.impl，默认启动ZooKeeperRegistry
       this.registry = setupRegistry();
 
       retrieveClusterId();
@@ -987,16 +988,12 @@ class ConnectionManager {
     }
 
     @Override
-    public HRegionLocation getRegionLocation(final TableName tableName,
-        final byte [] row, boolean reload)
-    throws IOException {
+    public HRegionLocation getRegionLocation(final TableName tableName, final byte [] row, boolean reload) throws IOException {
       return reload? relocateRegion(tableName, row): locateRegion(tableName, row);
     }
 
     @Override
-    public HRegionLocation getRegionLocation(final byte[] tableName,
-        final byte [] row, boolean reload)
-    throws IOException {
+    public HRegionLocation getRegionLocation(final byte[] tableName, final byte [] row, boolean reload) throws IOException {
       return getRegionLocation(TableName.valueOf(tableName), row, reload);
     }
 
@@ -1166,24 +1163,18 @@ class ConnectionManager {
     }
 
     @Override
-    public HRegionLocation locateRegion(final byte[] tableName,
-        final byte [] row)
-    throws IOException{
+    public HRegionLocation locateRegion(final byte[] tableName, final byte [] row) throws IOException{
       return locateRegion(TableName.valueOf(tableName), row);
     }
 
     @Override
-    public HRegionLocation relocateRegion(final TableName tableName,
-        final byte [] row) throws IOException{
-      RegionLocations locations =  relocateRegion(tableName, row,
-        RegionReplicaUtil.DEFAULT_REPLICA_ID);
-      return locations == null ? null :
-        locations.getRegionLocation(RegionReplicaUtil.DEFAULT_REPLICA_ID);
+    public HRegionLocation relocateRegion(final TableName tableName, final byte [] row) throws IOException{
+      RegionLocations locations =  relocateRegion(tableName, row, RegionReplicaUtil.DEFAULT_REPLICA_ID);
+      return locations == null ? null : locations.getRegionLocation(RegionReplicaUtil.DEFAULT_REPLICA_ID);
     }
 
     @Override
-    public RegionLocations relocateRegion(final TableName tableName,
-        final byte [] row, int replicaId) throws IOException{
+    public RegionLocations relocateRegion(final TableName tableName, final byte [] row, int replicaId) throws IOException{
       // Since this is an explicit request not to use any caching, finding
       // disabled tables should not be desirable.  This will ensure that an exception is thrown when
       // the first time a disabled table is interacted with.
@@ -1205,28 +1196,57 @@ class ConnectionManager {
       return locateRegion(tableName, row, useCache, retry, RegionReplicaUtil.DEFAULT_REPLICA_ID);
     }
 
+    /**
+     * 查询元数据
+     *
+     * @param tableName table to get regions of
+     * @param row the row
+     * @param useCache Should we use the cache to retrieve the region information.
+     * @param retry do we retry
+     * @param replicaId the replicaId for the region
+     * @return
+     * @throws IOException
+     */
     @Override
-    public RegionLocations locateRegion(final TableName tableName, final byte [] row, boolean useCache, boolean retry, int replicaId)
-    throws IOException {
-      if (this.closed) throw new DoNotRetryIOException(toString() + " closed");
+    public RegionLocations locateRegion(final TableName tableName, final byte [] row, boolean useCache, boolean retry, int replicaId) throws IOException {
+      if (this.closed) {
+        throw new DoNotRetryIOException(toString() + " closed");
+      }
+
       if (tableName== null || tableName.getName().length == 0) {
         throw new IllegalArgumentException("table name cannot be null or zero length");
       }
+
+      // 如果是查询meta_table
       if (tableName.equals(TableName.META_TABLE_NAME)) {
         return locateMeta(tableName, useCache, replicaId);
       } else {
+        // 从meta信息中加载其他的表数据
         // Region not in the cache - have to go to the meta RS
         return locateRegionInMeta(tableName, row, useCache, retry, replicaId);
       }
     }
 
+    /**
+     * 查询元数据 meta表名：hbase:meta，"info:regioninfo"
+     *
+     * @param tableName
+     * @param useCache
+     * @param replicaId
+     * @return
+     * @throws IOException
+     */
     private RegionLocations locateMeta(final TableName tableName, boolean useCache, int replicaId) throws IOException {
       // HBASE-10785: We cache the location of the META itself, so that we are not overloading
       // zookeeper with one request for every region lookup. We cache the META with empty row
       // key in MetaCache.
+
+      // 使用空字节作为Meta表的缓存key
       byte[] metaCacheKey = HConstants.EMPTY_START_ROW; // use byte[0] as the row for meta
+
       RegionLocations locations = null;
       if (useCache) {
+        // 去缓存中查看，如果能查到，则直接返回
         locations = getCachedLocation(tableName, metaCacheKey);
         if (locations != null && locations.getRegionLocation(replicaId) != null) {
           return locations;
@@ -1245,6 +1265,7 @@ class ConnectionManager {
         }
 
         // Look up from zookeeper
+        // 从zookeeper中查询，获得meta的region信息
         locations = this.registry.getMetaRegionLocation();
         if (locations != null) {
           cacheLocation(tableName, locations);
@@ -1257,11 +1278,11 @@ class ConnectionManager {
       * Search the hbase:meta table for the HRegionLocation
       * info that contains the table and row we're seeking.
       */
-    private RegionLocations locateRegionInMeta(TableName tableName, byte[] row,
-                   boolean useCache, boolean retry, int replicaId) throws IOException {
+    private RegionLocations locateRegionInMeta(TableName tableName, byte[] row, boolean useCache, boolean retry, int replicaId) throws IOException {
 
       // If we are supposed to be using the cache, look in the cache to see if
       // we already have the region.
+      // 如果使用cache，则在cache中查找region信息，如果查找到，则直接返回
       if (useCache) {
         RegionLocations locations = getCachedLocation(tableName, row);
         if (locations != null && locations.getRegionLocation(replicaId) != null) {
@@ -1274,6 +1295,8 @@ class ConnectionManager {
       // without knowing the precise region names.
       byte[] metaKey = HRegionInfo.createRegionName(tableName, row, HConstants.NINES, false);
 
+      // 反向小scan
+      // TODO 研究反向最小scan的作用和优势
       Scan s = new Scan();
       s.setReversed(true);
       s.setStartRow(metaKey);
@@ -1426,8 +1449,7 @@ class ConnectionManager {
      * @param row
      * @return Null or region location found in cache.
      */
-    RegionLocations getCachedLocation(final TableName tableName,
-        final byte [] row) {
+    RegionLocations getCachedLocation(final TableName tableName, final byte [] row) {
       return metaCache.getCachedLocation(tableName, row);
     }
 
@@ -1464,17 +1486,14 @@ class ConnectionManager {
      * @param source the source of the new location, if it's not coming from meta
      * @param location the new location
      */
-    private void cacheLocation(final TableName tableName, final ServerName source,
-        final HRegionLocation location) {
+    private void cacheLocation(final TableName tableName, final ServerName source, final HRegionLocation location) {
       metaCache.cacheLocation(tableName, source, location);
     }
 
     // Map keyed by service name + regionserver to service stub implementation
-    private final ConcurrentHashMap<String, Object> stubs =
-      new ConcurrentHashMap<String, Object>();
+    private final ConcurrentHashMap<String, Object> stubs = new ConcurrentHashMap<String, Object>();
     // Map of locks used creating service stubs per regionserver.
-    private final ConcurrentHashMap<String, String> connectionLock =
-      new ConcurrentHashMap<String, String>();
+    private final ConcurrentHashMap<String, String> connectionLock = new ConcurrentHashMap<String, String>();
 
     /**
      * State of the MasterService connection/setup.
@@ -1662,21 +1681,31 @@ class ConnectionManager {
       return stub;
     }
 
+    /**
+     * 1 通过方法名、服务器名、端口号等创建key
+     * 2 查询ConcurrentHashMap是否存在key
+     * 3 如果不存在创建对象放入stubs中。
+     *
+     * @param sn
+     * @return
+     * @throws IOException
+     */
     @Override
-    public ClientService.BlockingInterface getClient(final ServerName sn)
-    throws IOException {
+    public ClientService.BlockingInterface getClient(final ServerName sn) throws IOException {
       if (isDeadServer(sn)) {
         throw new RegionServerStoppedException(sn + " is dead.");
       }
-      String key = getStubKey(ClientService.BlockingInterface.class.getName(), sn.getHostname(),
-          sn.getPort(), this.hostnamesCanChange);
+      // 规则：serviceName + "@" + address + ":" + port
+      String key = getStubKey(ClientService.BlockingInterface.class.getName(), sn.getHostname(), sn.getPort(), this.hostnamesCanChange);
+
+      // 如果存在则不仅行更新
       this.connectionLock.putIfAbsent(key, key);
+
       ClientService.BlockingInterface stub = null;
       synchronized (this.connectionLock.get(key)) {
         stub = (ClientService.BlockingInterface)this.stubs.get(key);
         if (stub == null) {
-          BlockingRpcChannel channel =
-              this.rpcClient.createBlockingRpcChannel(sn, user, rpcTimeout);
+          BlockingRpcChannel channel = this.rpcClient.createBlockingRpcChannel(sn, user, rpcTimeout);
           stub = ClientService.newBlockingStub(channel);
           // In old days, after getting stub/proxy, we'd make a call.  We are not doing that here.
           // Just fail on first actual call rather than in here on setup.
@@ -1717,8 +1746,7 @@ class ConnectionManager {
      * Retrieve a shared ZooKeeperWatcher. You must close it it once you've have finished with it.
      * @return The shared instance. Never returns null.
      */
-    ZooKeeperKeepAliveConnection getKeepAliveZooKeeperWatcher()
-      throws IOException {
+    ZooKeeperKeepAliveConnection getKeepAliveZooKeeperWatcher() throws IOException {
       synchronized (masterAndZKLock) {
         if (keepAliveZookeeper == null) {
           if (this.closed) {

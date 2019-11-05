@@ -40,6 +40,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * A cache implementation for region locations from meta.
+ *
+ * Region位置信息的缓存
  */
 @InterfaceAudience.Private
 public class MetaCache {
@@ -48,10 +50,9 @@ public class MetaCache {
 
   /**
    * Map of table to table {@link HRegionLocation}s.
+   * 使用concurrentMap保存 --> tablename, map<key, locations>
    */
-  private final ConcurrentMap<TableName, ConcurrentNavigableMap<byte[], RegionLocations>>
-  cachedRegionLocations =
-  new CopyOnWriteArrayMap<>();
+  private final ConcurrentMap<TableName, ConcurrentNavigableMap<byte[], RegionLocations>> cachedRegionLocations = new CopyOnWriteArrayMap<>();
 
   // The presence of a server in the map implies it's likely that there is an
   // entry in cachedRegionLocations that map to this server; but the absence
@@ -73,8 +74,8 @@ public class MetaCache {
    * @return Null or region location found in cache.
    */
   public RegionLocations getCachedLocation(final TableName tableName, final byte [] row) {
-    ConcurrentNavigableMap<byte[], RegionLocations> tableLocations =
-      getTableLocations(tableName);
+    // TODO ConcurrentNavigableMap的作用，它内部是怎么实现查询匹配的
+    ConcurrentNavigableMap<byte[], RegionLocations> tableLocations = getTableLocations(tableName);
 
     Entry<byte[], RegionLocations> e = tableLocations.floorEntry(row);
     if (e == null) {
@@ -88,15 +89,18 @@ public class MetaCache {
     // this one. the exception case is when the endkey is
     // HConstants.EMPTY_END_ROW, signifying that the region we're
     // checking is actually the last region in the table.
+
+    // 确保region的endkey比查找的rowkey要大，或者endkey是空的。
+    // 则证明命中region
     byte[] endKey = possibleRegion.getRegionLocation().getRegionInfo().getEndKey();
     if (Bytes.equals(endKey, HConstants.EMPTY_END_ROW) ||
-        getRowComparator(tableName).compareRows(
-            endKey, 0, endKey.length, row, 0, row.length) > 0) {
+            getRowComparator(tableName).compareRows(endKey, 0, endKey.length, row, 0, row.length) > 0) {
       if (metrics != null) metrics.incrMetaCacheHit();
       return possibleRegion;
     }
 
     // Passed all the way through, so we got nothing - complete cache miss
+    // 如果查询不到，则标记为未命中
     if (metrics != null) metrics.incrMetaCacheMiss();
     return null;
   }
@@ -154,10 +158,15 @@ public class MetaCache {
    * @param locations the new locations
    */
   public void cacheLocation(final TableName tableName, final RegionLocations locations) {
+    // 获得对应的startkey
     byte [] startKey = locations.getRegionLocation().getRegionInfo().getStartKey();
+    // 获得对应的tables
     ConcurrentMap<byte[], RegionLocations> tableLocations = getTableLocations(tableName);
+    // 更新新的表
     RegionLocations oldLocation = tableLocations.putIfAbsent(startKey, locations);
+
     boolean isNewCacheEntry = (oldLocation == null);
+    // 如果是新添加的location信息，需要把serverName放入缓存中
     if (isNewCacheEntry) {
       if (LOG.isTraceEnabled()) {
         LOG.trace("Cached location: " + locations);
@@ -189,16 +198,14 @@ public class MetaCache {
    * @param tableName
    * @return Map of cached locations for passed <code>tableName</code>
    */
-  private ConcurrentNavigableMap<byte[], RegionLocations>
-    getTableLocations(final TableName tableName) {
+  private ConcurrentNavigableMap<byte[], RegionLocations> getTableLocations(final TableName tableName) {
     // find the map of cached locations for this table
     ConcurrentNavigableMap<byte[], RegionLocations> result;
     result = this.cachedRegionLocations.get(tableName);
     // if tableLocations for this table isn't built yet, make one
     if (result == null) {
       result = new CopyOnWriteArrayMap<>(Bytes.BYTES_COMPARATOR);
-      ConcurrentNavigableMap<byte[], RegionLocations> old =
-          this.cachedRegionLocations.putIfAbsent(tableName, result);
+      ConcurrentNavigableMap<byte[], RegionLocations> old = this.cachedRegionLocations.putIfAbsent(tableName, result);
       if (old != null) {
         return old;
       }

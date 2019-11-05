@@ -741,9 +741,7 @@ class AsyncProcess {
       private final ServerName server;
       private final Set<MultiServerCallable<Row>> callsInProgress;
 
-      private SingleServerRequestRunnable(
-          MultiAction<Row> multiAction, int numAttempt, ServerName server,
-          Set<MultiServerCallable<Row>> callsInProgress) {
+      private SingleServerRequestRunnable(MultiAction<Row> multiAction, int numAttempt, ServerName server, Set<MultiServerCallable<Row>> callsInProgress) {
         this.multiAction = multiAction;
         this.numAttempt = numAttempt;
         this.server = server;
@@ -755,6 +753,7 @@ class AsyncProcess {
         MultiResponse res;
         MultiServerCallable<Row> callable = null;
         try {
+          // <---- 这里创建的请求
           callable = createCallable(server, tableName, multiAction);
           try {
             RpcRetryingCaller<MultiResponse> caller = createCaller(callable);
@@ -1117,10 +1116,11 @@ class AsyncProcess {
         String traceText = "AsyncProcess.sendMultiAction";
 
         // 创建一个runnable，提交到pool中
-        // 作用：向某个服务器提交多个action
+        // 作用：向某个服务器提交多个action，这里是构建请求的主要代码
         Runnable runnable = new SingleServerRequestRunnable(runner.getActions(), numAttempt, server, callsInProgress);
         // use a delay runner only if we need to sleep for some time
         if (runner.getSleepTime() > 0) {
+          // 如果休息时间不为0，就创建带有延迟的runnable
           runner.setRunner(runnable);
           traceText = "AsyncProcess.clientBackoff.sendMultiAction";
           runnable = runner;
@@ -1133,9 +1133,9 @@ class AsyncProcess {
             connection.getConnectionMetrics().incrNormalRunners();
           }
         }
+        // 包装文本
         runnable = Trace.wrap(traceText, runnable);
         toReturn.add(runnable);
-
       }
       return toReturn;
     }
@@ -1147,7 +1147,9 @@ class AsyncProcess {
      * specified server and region
      */
     private Long getBackoff(ServerName server, byte[] regionName) {
+      // 获取统计追踪
       ServerStatisticTracker tracker = AsyncProcess.this.connection.getStatisticsTracker();
+      // 获取目标主机的数据
       ServerStatistics stats = tracker.getStats(server);
       return AsyncProcess.this.connection.getBackoffPolicy().getBackoffTime(server, regionName, stats);
     }

@@ -33620,8 +33620,7 @@ public final class ClientProtos {
   /**
    * Protobuf service {@code ClientService}
    */
-  public static abstract class ClientService
-      implements com.google.protobuf.Service {
+  public static abstract class ClientService implements com.google.protobuf.Service {
     protected ClientService() {}
 
     public interface Interface {
@@ -33683,8 +33682,7 @@ public final class ClientProtos {
 
     }
 
-    public static com.google.protobuf.Service newReflectiveService(
-        final Interface impl) {
+    public static com.google.protobuf.Service newReflectiveService(final Interface impl) {
       return new ClientService() {
         @java.lang.Override
         public  void get(
@@ -34138,8 +34136,7 @@ public final class ClientProtos {
       }
     }
 
-    public static BlockingInterface newBlockingStub(
-        com.google.protobuf.BlockingRpcChannel channel) {
+    public static BlockingInterface newBlockingStub(com.google.protobuf.BlockingRpcChannel channel) {
       return new BlockingStub(channel);
     }
 

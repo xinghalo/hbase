@@ -115,6 +115,7 @@ import com.google.protobuf.ServiceException;
 @InterfaceStability.Stable
 public class HTable implements HTableInterface, RegionLocator {
   private static final Log LOG = LogFactory.getLog(HTable.class);
+
   protected ClusterConnection connection;
   private final TableName tableName;
   private volatile Configuration configuration;
@@ -146,8 +147,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@link Connection} to instantiate a {@link Table} instead.
    */
   @Deprecated
-  public HTable(Configuration conf, final String tableName)
-  throws IOException {
+  public HTable(Configuration conf, final String tableName) throws IOException {
     this(conf, TableName.valueOf(tableName));
   }
 
@@ -160,8 +160,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@link Connection} to instantiate a {@link Table} instead.
    */
   @Deprecated
-  public HTable(Configuration conf, final byte[] tableName)
-  throws IOException {
+  public HTable(Configuration conf, final byte[] tableName) throws IOException {
     this(conf, TableName.valueOf(tableName));
   }
 
@@ -174,8 +173,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@link Connection} to instantiate a {@link Table} instead.
    */
   @Deprecated
-  public HTable(Configuration conf, final TableName tableName)
-  throws IOException {
+  public HTable(Configuration conf, final TableName tableName) throws IOException {
     this.tableName = tableName;
     this.cleanupPoolOnClose = this.cleanupConnectionOnClose = true;
     if (conf == null) {
@@ -237,8 +235,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@link Connection} to instantiate a {@link Table} instead.
    */
   @Deprecated
-  public HTable(Configuration conf, final byte[] tableName, final ExecutorService pool)
-      throws IOException {
+  public HTable(Configuration conf, final byte[] tableName, final ExecutorService pool) throws IOException {
     this(conf, TableName.valueOf(tableName), pool);
   }
 
@@ -252,8 +249,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@link Connection} to instantiate a {@link Table} instead.
    */
   @Deprecated
-  public HTable(Configuration conf, final TableName tableName, final ExecutorService pool)
-      throws IOException {
+  public HTable(Configuration conf, final TableName tableName, final ExecutorService pool) throws IOException {
     this.connection = ConnectionManager.getConnectionInternal(conf);
     this.configuration = conf;
     this.pool = pool;
@@ -277,15 +273,13 @@ public class HTable implements HTableInterface, RegionLocator {
    * @deprecated Do not use, internal ctor.
    */
   @Deprecated
-  public HTable(final byte[] tableName, final Connection connection,
-      final ExecutorService pool) throws IOException {
+  public HTable(final byte[] tableName, final Connection connection, final ExecutorService pool) throws IOException {
     this(TableName.valueOf(tableName), connection, pool);
   }
 
   /** @deprecated Do not use, internal ctor. */
   @Deprecated
-  public HTable(TableName tableName, final Connection connection,
-      final ExecutorService pool) throws IOException {
+  public HTable(TableName tableName, final Connection connection, final ExecutorService pool) throws IOException {
     this(tableName, (ClusterConnection)connection, null, null, null, pool);
   }
 
@@ -355,10 +349,13 @@ public class HTable implements HTableInterface, RegionLocator {
     if (connConfiguration == null) {
       connConfiguration = new ConnectionConfiguration(configuration);
     }
-    this.operationTimeout = tableName.isSystemTable() ?
-        connConfiguration.getMetaOperationTimeout() : connConfiguration.getOperationTimeout();
-    this.rpcTimeout = configuration.getInt(HConstants.HBASE_RPC_TIMEOUT_KEY,
-        HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+    // 判断是否为系统表，系统表和普通表的超时时间还不一致
+    // 系统表：hbase.client.meta.operation.timeout
+    // 普通表：hbase.client.operation.timeout
+    this.operationTimeout = tableName.isSystemTable() ? connConfiguration.getMetaOperationTimeout() : connConfiguration.getOperationTimeout();
+    // rpc超时时间，默认60s，hbase.rpc.timeout
+    this.rpcTimeout = configuration.getInt(HConstants.HBASE_RPC_TIMEOUT_KEY, HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+    // hbase.client.scanner.caching，最大值
     this.scannerCaching = connConfiguration.getScannerCaching();
     this.scannerMaxResultSize = connConfiguration.getScannerMaxResultSize();
     if (this.rpcCallerFactory == null) {
@@ -373,6 +370,7 @@ public class HTable implements HTableInterface, RegionLocator {
 
     this.closed = false;
 
+    // 定位表
     this.locator = new HRegionLocator(tableName, connection);
   }
 
@@ -971,8 +969,7 @@ public class HTable implements HTableInterface, RegionLocator {
         controller.setCallTimeout(callTimeout);
 
         try {
-          MutateRequest request = RequestConverter.buildMutateRequest(
-            getLocation().getRegionInfo().getRegionName(), delete);
+          MutateRequest request = RequestConverter.buildMutateRequest(getLocation().getRegionInfo().getRegionName(), delete);
           MutateResponse response = getStub().mutate(controller, request);
           return Boolean.valueOf(response.getProcessed());
         } catch (ServiceException se) {

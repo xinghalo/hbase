@@ -4,11 +4,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
 
-public class ConnectionTest {
+public class ScanTest {
     public static void main(String[] args) throws IOException {
         Configuration configuration = HBaseConfiguration.create();
         configuration.set("hbase.zookeeper.property.clientPort", "2181");
@@ -17,13 +16,13 @@ public class ConnectionTest {
         Connection connection = ConnectionFactory.createConnection(configuration);
 
         try(Table table = connection.getTable(TableName.valueOf("rec:user_product_rec"))){
-            Get get = new Get(Bytes.toBytes("12338275"));
-            Result result = table.get(get);
-            byte[] v = result.getValue(Bytes.toBytes("v"), Bytes.toBytes("c1"));
-            System.out.println(new String(v));
+            Scan scan = new Scan();
+            scan.setMaxResultSize(2);
+            ResultScanner scanner4 = table.getScanner(scan);
+
+            for (Result res : scanner4) {
+                System.out.println(res);
+            }
         }
     }
 }
-
-
-

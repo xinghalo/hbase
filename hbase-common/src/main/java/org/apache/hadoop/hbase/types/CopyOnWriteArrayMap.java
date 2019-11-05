@@ -42,8 +42,7 @@ import java.util.concurrent.ConcurrentNavigableMap;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Stable
-public class CopyOnWriteArrayMap<K, V> extends AbstractMap<K, V>
-    implements Map<K, V>, ConcurrentNavigableMap<K, V> {
+public class CopyOnWriteArrayMap<K, V> extends AbstractMap<K, V> implements Map<K, V>, ConcurrentNavigableMap<K, V> {
   private final Comparator<? super K> keyComparator;
   private volatile ArrayHolder<K, V> holder;
 

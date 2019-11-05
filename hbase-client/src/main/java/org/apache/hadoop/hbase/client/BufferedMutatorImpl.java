@@ -59,16 +59,25 @@ public class BufferedMutatorImpl implements BufferedMutator {
   
   private final ExceptionListener listener;
 
-  protected ClusterConnection connection; // non-final so can be overridden in test
+  /**
+   * non-final so can be overridden in test
+   */
+  protected ClusterConnection connection;
   private final TableName tableName;
   private volatile Configuration conf;
+
   @VisibleForTesting
+  /**
+   * <--- 这里很重要，使用ConcurrentLinkedQueue实现的并发无界队列
+   */
   final ConcurrentLinkedQueue<Mutation> writeAsyncBuffer = new ConcurrentLinkedQueue<Mutation>();
   @VisibleForTesting
   AtomicLong currentWriteBufferSize = new AtomicLong(0);
 
 
-  // 提交flush的大小
+  /**
+   * 提交flush的大小
+   */
   private long writeBufferSize;
   private final int maxKeyValueSize;
   private boolean closed = false;
