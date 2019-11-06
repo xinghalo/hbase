@@ -66,8 +66,7 @@ public class HRegionLocator implements RegionLocator {
    * {@inheritDoc}
    */
   @Override
-  public HRegionLocation getRegionLocation(final byte [] row)
-  throws IOException {
+  public HRegionLocation getRegionLocation(final byte [] row) throws IOException {
     return connection.getRegionLocation(tableName, row, false);
   }
 
@@ -75,8 +74,7 @@ public class HRegionLocator implements RegionLocator {
    * {@inheritDoc}
    */
   @Override
-  public HRegionLocation getRegionLocation(final byte [] row, boolean reload)
-  throws IOException {
+  public HRegionLocation getRegionLocation(final byte [] row, boolean reload) throws IOException {
     return connection.getRegionLocation(tableName, row, reload);
   }
 

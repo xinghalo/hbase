@@ -53,8 +53,7 @@ public final class RpcClientFactory {
    * @param metrics the connection metrics
    * @return newly created RpcClient
    */
-  public static RpcClient createClient(Configuration conf, String clusterId,
-      MetricsConnection metrics) {
+  public static RpcClient createClient(Configuration conf, String clusterId, MetricsConnection metrics) {
     return createClient(conf, clusterId, null, metrics);
   }
 
@@ -69,8 +68,7 @@ public final class RpcClientFactory {
    */
   public static RpcClient createClient(Configuration conf, String clusterId, SocketAddress localAddr, MetricsConnection metrics) {
     String rpcClientClass = conf.get(CUSTOM_RPC_CLIENT_IMPL_CONF_KEY, RpcClientImpl.class.getName());
-    return ReflectionUtils.instantiateWithCustomCtor(
-        rpcClientClass,
+    return ReflectionUtils.instantiateWithCustomCtor( rpcClientClass,
         new Class[] { Configuration.class, String.class, SocketAddress.class, MetricsConnection.class },
         new Object[] { conf, clusterId, localAddr, metrics }
     );

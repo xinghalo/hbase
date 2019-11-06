@@ -261,8 +261,7 @@ public class IPCUtil {
    * @return Total number of bytes written.
    * @throws IOException
    */
-  public static int write(final OutputStream dos, final Message header, final Message param,
-      final ByteBuffer cellBlock)
+  public static int write(final OutputStream dos, final Message header, final Message param, final ByteBuffer cellBlock)
   throws IOException {
     // Must calculate total size and write that first so other side can read it all in in one
     // swoop.  This is dictated by how the server is currently written.  Server needs to change

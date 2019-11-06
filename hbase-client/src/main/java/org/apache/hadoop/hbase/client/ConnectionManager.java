@@ -1698,13 +1698,14 @@ class ConnectionManager {
       // 规则：serviceName + "@" + address + ":" + port
       String key = getStubKey(ClientService.BlockingInterface.class.getName(), sn.getHostname(), sn.getPort(), this.hostnamesCanChange);
 
-      // 如果存在则不仅行更新
+      // 如果存在则不仅行更新。通过加锁，每个rs只建立一个连接
       this.connectionLock.putIfAbsent(key, key);
 
       ClientService.BlockingInterface stub = null;
       synchronized (this.connectionLock.get(key)) {
         stub = (ClientService.BlockingInterface)this.stubs.get(key);
         if (stub == null) {
+          // rpcClient 默认的实现类：RpcClientImpl
           BlockingRpcChannel channel = this.rpcClient.createBlockingRpcChannel(sn, user, rpcTimeout);
           stub = ClientService.newBlockingStub(channel);
           // In old days, after getting stub/proxy, we'd make a call.  We are not doing that here.

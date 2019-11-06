@@ -493,8 +493,7 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
    * Starts a HRegionServer at the default location
    * @param csm implementation of CoordinatedStateManager to be used
    */
-  public HRegionServer(Configuration conf, CoordinatedStateManager csm)
-      throws IOException, InterruptedException {
+  public HRegionServer(Configuration conf, CoordinatedStateManager csm) throws IOException, InterruptedException {
     super("RegionServer");  // thread name
     this.fsOk = true;
     this.conf = conf;
@@ -514,16 +513,11 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     boolean isNoncesEnabled = conf.getBoolean(HConstants.HBASE_RS_NONCES_ENABLED, true);
     this.nonceManager = isNoncesEnabled ? new ServerNonceManager(this.conf) : null;
 
-    this.numRegionsToReport = conf.getInt(
-      "hbase.regionserver.numregionstoreport", 10);
+    this.numRegionsToReport = conf.getInt("hbase.regionserver.numregionstoreport", 10);
 
-    this.operationTimeout = conf.getInt(
-      HConstants.HBASE_CLIENT_OPERATION_TIMEOUT,
-      HConstants.DEFAULT_HBASE_CLIENT_OPERATION_TIMEOUT);
+    this.operationTimeout = conf.getInt(HConstants.HBASE_CLIENT_OPERATION_TIMEOUT, HConstants.DEFAULT_HBASE_CLIENT_OPERATION_TIMEOUT);
 
-    this.shortOperationTimeout = conf.getInt(
-      HConstants.HBASE_RPC_SHORTOPERATION_TIMEOUT_KEY,
-      HConstants.DEFAULT_HBASE_RPC_SHORTOPERATION_TIMEOUT);
+    this.shortOperationTimeout = conf.getInt(HConstants.HBASE_RPC_SHORTOPERATION_TIMEOUT_KEY, HConstants.DEFAULT_HBASE_RPC_SHORTOPERATION_TIMEOUT);
 
     this.abortRequested = false;
     this.stopped = false;
@@ -536,16 +530,14 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     } else {
       useThisHostnameInstead = conf.get(RS_HOSTNAME_KEY);
     }
-    String hostName = shouldUseThisHostnameInstead() ? useThisHostnameInstead :
-      rpcServices.isa.getHostName();
+    String hostName = shouldUseThisHostnameInstead() ? useThisHostnameInstead : rpcServices.isa.getHostName();
     serverName = ServerName.valueOf(hostName, rpcServices.isa.getPort(), startcode);
 
     rpcControllerFactory = RpcControllerFactory.instantiate(this.conf);
     rpcRetryingCallerFactory = RpcRetryingCallerFactory.instantiate(this.conf);
 
     // login the zookeeper client principal (if using security)
-    ZKUtil.loginClient(this.conf, HConstants.ZK_CLIENT_KEYTAB_FILE,
-      HConstants.ZK_CLIENT_KERBEROS_PRINCIPAL, hostName);
+    ZKUtil.loginClient(this.conf, HConstants.ZK_CLIENT_KEYTAB_FILE, HConstants.ZK_CLIENT_KERBEROS_PRINCIPAL, hostName);
     // login the server principal (if using secure Hadoop)
     login(userProvider, hostName);
     // init superusers and add the server principal (if using security)
@@ -577,8 +569,7 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
       this.csm.initialize(this);
       this.csm.start();
 
-      tableLockManager = TableLockManager.createTableLockManager(
-        conf, zooKeeper, serverName);
+      tableLockManager = TableLockManager.createTableLockManager(conf, zooKeeper, serverName);
 
       masterAddressTracker = new MasterAddressTracker(getZooKeeper(), this);
       masterAddressTracker.start();

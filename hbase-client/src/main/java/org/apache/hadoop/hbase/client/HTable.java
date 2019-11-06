@@ -1033,8 +1033,7 @@ public class HTable implements HTableInterface, RegionLocator {
    */
   @Override
   public void mutateRow(final RowMutations rm) throws IOException {
-    RegionServerCallable<Void> callable =
-        new RegionServerCallable<Void>(connection, getName(), rm.getRow()) {
+    RegionServerCallable<Void> callable = new RegionServerCallable<Void>(connection, getName(), rm.getRow()) {
       @Override
       public Void call(int callTimeout) throws IOException {
         PayloadCarryingRpcController controller = rpcControllerFactory.newController();
@@ -1061,8 +1060,7 @@ public class HTable implements HTableInterface, RegionLocator {
         return null;
       }
     };
-    rpcCallerFactory.<Void> newCaller(rpcTimeout).callWithRetries(callable,
-        this.operationTimeout);
+    rpcCallerFactory.<Void> newCaller(rpcTimeout).callWithRetries(callable, this.operationTimeout);
   }
 
   /**

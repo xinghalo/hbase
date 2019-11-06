@@ -224,6 +224,7 @@ public abstract class AbstractRpcClient implements RpcClient {
     try {
       final MetricsConnection.CallStats cs = MetricsConnection.newCallStats();
       cs.setStartTime(EnvironmentEdgeManager.currentTime());
+      // 调用rpcclientImpl的call方法
       val = call(pcrc, md, param, returnType, ticket, isa, cs);
       // Shove the results into controller so can be carried across the proxy/pb service void.
       pcrc.setCellScanner(val.getSecond());
@@ -261,9 +262,16 @@ public abstract class AbstractRpcClient implements RpcClient {
       InetSocketAddress isa, MetricsConnection.CallStats callStats)
       throws IOException, InterruptedException;
 
+  /**
+   *
+   * @param sn server name describing location of server
+   * @param ticket user
+   * @param defaultOperationTimeout timeout
+   * @return channel
+   * @throws UnknownHostException
+   */
   @Override
-  public BlockingRpcChannel createBlockingRpcChannel(final ServerName sn, final User ticket,
-      int defaultOperationTimeout) throws UnknownHostException {
+  public BlockingRpcChannel createBlockingRpcChannel(final ServerName sn, final User ticket, int defaultOperationTimeout) throws UnknownHostException {
     return new BlockingRpcChannelImplementation(this, sn, ticket, defaultOperationTimeout);
   }
 
@@ -299,6 +307,7 @@ public abstract class AbstractRpcClient implements RpcClient {
    */
   @VisibleForTesting
   public static class BlockingRpcChannelImplementation implements BlockingRpcChannel {
+
     private final InetSocketAddress isa;
     private final AbstractRpcClient rpcClient;
     private final User ticket;
@@ -307,9 +316,8 @@ public abstract class AbstractRpcClient implements RpcClient {
     /**
      * @param channelOperationTimeout - the default timeout when no timeout is given
      */
-    protected BlockingRpcChannelImplementation(final AbstractRpcClient rpcClient,
-        final ServerName sn, final User ticket, int channelOperationTimeout)
-        throws UnknownHostException {
+    protected BlockingRpcChannelImplementation(final AbstractRpcClient rpcClient, final ServerName sn, final User ticket, int channelOperationTimeout)
+            throws UnknownHostException {
       this.isa = new InetSocketAddress(sn.getHostname(), sn.getPort());
       if (this.isa.isUnresolved()) {
         throw new UnknownHostException(sn.getHostname());
@@ -320,8 +328,7 @@ public abstract class AbstractRpcClient implements RpcClient {
     }
 
     @Override
-    public Message callBlockingMethod(Descriptors.MethodDescriptor md, RpcController controller,
-        Message param, Message returnType) throws ServiceException {
+    public Message callBlockingMethod(Descriptors.MethodDescriptor md, RpcController controller, Message param, Message returnType) throws ServiceException {
       PayloadCarryingRpcController pcrc;
       if (controller != null && controller instanceof PayloadCarryingRpcController) {
         pcrc = (PayloadCarryingRpcController) controller;

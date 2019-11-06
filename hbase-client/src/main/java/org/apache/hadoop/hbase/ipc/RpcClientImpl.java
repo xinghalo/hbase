@@ -157,7 +157,14 @@ public class RpcClientImpl extends AbstractRpcClient {
 
   /** Thread that reads responses and notifies callers.  Each connection owns a
    * socket connected to a remote address.  Calls are multiplexed through this
-   * socket: responses may be delivered out of order. */
+   * socket: responses may be delivered out of order.
+   *
+   * Connection线程，读取返回结果，并通知给调用者。
+   * 每个connection都维护一个远程地址的socket连接
+   * 多路复用？多个调用者共享这个connection？
+   *
+   * TODO connection如何实现共享？
+   * */
   protected class Connection extends Thread {
     private ConnectionHeader header;              // connection header
     protected ConnectionId remoteId;
@@ -267,11 +274,11 @@ public class RpcClientImpl extends AbstractRpcClient {
           }
 
           try {
+            // TODO connection.this ？什么语法
             Connection.this.tracedWriteRequest(cts.call, cts.priority, cts.span);
           } catch (IOException e) {
             if (LOG.isDebugEnabled()) {
-              LOG.debug("call write error for call #" + cts.call.id
-                + ", message =" + e.getMessage());
+              LOG.debug("call write error for call #" + cts.call.id + ", message =" + e.getMessage());
             }
             cts.call.setException(e);
             markClosed(e);
@@ -687,6 +694,11 @@ public class RpcClientImpl extends AbstractRpcClient {
       });
     }
 
+    /**
+     * 检查socket是否创建，连接是否已关闭，RS服务器是否正常
+     *
+     * @throws IOException
+     */
     protected synchronized void setupIOstreams() throws IOException {
       if (socket != null) {
         // The connection is already available. Perfect.
@@ -699,11 +711,9 @@ public class RpcClientImpl extends AbstractRpcClient {
 
       if (failedServers.isFailedServer(remoteId.getAddress())) {
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Not trying to connect to " + server +
-              " this server is in the failed servers list");
+          LOG.debug("Not trying to connect to " + server + " this server is in the failed servers list");
         }
-        IOException e = new FailedServerException(
-            "This server is in the failed servers list: " + server);
+        IOException e = new FailedServerException( "This server is in the failed servers list: " + server);
         markClosed(e);
         close();
         throw e;
@@ -717,6 +727,7 @@ public class RpcClientImpl extends AbstractRpcClient {
         final short MAX_RETRIES = 5;
         Random rand = null;
         while (true) {
+          // 启动连接，创建socket
           setupConnection();
           InputStream inStream = NetUtils.getInputStream(socket);
           // This creates a socket with a write timeout. This timeout cannot be changed.
@@ -880,9 +891,9 @@ public class RpcClientImpl extends AbstractRpcClient {
      * threads.
      * @see #readResponse()
      */
-    @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="IS2_INCONSISTENT_SYNC",
-        justification="Findbugs is misinterpreting locking missing fact that this.outLock is held")
+    @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="IS2_INCONSISTENT_SYNC", justification="Findbugs is misinterpreting locking missing fact that this.outLock is held")
     private void writeRequest(Call call, final int priority, Span span) throws IOException {
+      // protobuf 对象创建
       RequestHeader.Builder builder = RequestHeader.newBuilder();
       builder.setCallId(call.id);
       if (span != null) {
@@ -899,8 +910,11 @@ public class RpcClientImpl extends AbstractRpcClient {
       }
       // Only pass priority if there one.  Let zero be same as no priority.
       if (priority != 0) builder.setPriority(priority);
+
+      // 创建RequestHeader对象
       RequestHeader header = builder.build();
 
+      // 检查socket
       setupIOstreams();
 
       // Now we're going to write the call. We take the lock, then check that the connection
@@ -915,8 +929,8 @@ public class RpcClientImpl extends AbstractRpcClient {
         checkIsOpen(); // Now we're checking that it didn't became idle in between.
 
         try {
-          call.callStats.setRequestSizeBytes(IPCUtil.write(this.out, header, call.param,
-              cellBlock));
+          // TODO header, param, cellblock的作用？
+          call.callStats.setRequestSizeBytes(IPCUtil.write(this.out, header, call.param, cellBlock));
         } catch (Throwable t) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Error while writing call, call_id:" + call.id, t);
@@ -1213,30 +1227,37 @@ public class RpcClientImpl extends AbstractRpcClient {
       Message param, Message returnType, User ticket, InetSocketAddress addr,
       MetricsConnection.CallStats callStats)
       throws IOException, InterruptedException {
+
     if (pcrc == null) {
       pcrc = new PayloadCarryingRpcController();
     }
+
     CellScanner cells = pcrc.cellScanner();
 
-    final Call call = new Call(this.callIdCnt.getAndIncrement(), md, param, cells, returnType,
-        pcrc.getCallTimeout(), MetricsConnection.newCallStats());
+    // 新建call对象
+    final Call call = new Call(this.callIdCnt.getAndIncrement(), md, param, cells, returnType, pcrc.getCallTimeout(), MetricsConnection.newCallStats());
 
+    // 获得connection
     final Connection connection = getConnection(ticket, call, addr);
 
     final CallFuture cts;
+
+    // 默认是false，即默认不使用另一个线程进行发送
     if (connection.callSender != null) {
+
+      // 发送call
       cts = connection.callSender.sendCall(call, pcrc.getPriority(), Trace.currentSpan());
-        pcrc.notifyOnCancel(new RpcCallback<Object>() {
-          @Override
-          public void run(Object parameter) {
-            connection.callSender.remove(cts);
-          }
-        });
-        if (pcrc.isCanceled()) {
-          // To finish if the call was cancelled before we set the notification (race condition)
-          call.callComplete();
-          return new Pair<Message, CellScanner>(call.response, call.cells);
+      pcrc.notifyOnCancel(new RpcCallback<Object>() {
+        @Override
+        public void run(Object parameter) {
+          connection.callSender.remove(cts);
         }
+      });
+      if (pcrc.isCanceled()) {
+        // To finish if the call was cancelled before we set the notification (race condition)
+        call.callComplete();
+        return new Pair<Message, CellScanner>(call.response, call.cells);
+      }
     } else {
       cts = null;
       connection.tracedWriteRequest(call, pcrc.getPriority(), Trace.currentSpan());
@@ -1248,12 +1269,12 @@ public class RpcClientImpl extends AbstractRpcClient {
         break;
       }
       if (connection.shouldCloseConnection.get()) {
-        throw new ConnectionClosingException("Call id=" + call.id +
-            " on server " + addr + " aborted: connection is closing");
+        throw new ConnectionClosingException("Call id=" + call.id + " on server " + addr + " aborted: connection is closing");
       }
       try {
         synchronized (call) {
           if (call.done) break;
+          // 调用wait挂起
           call.wait(Math.min(call.remainingTime(), 1000) + 1);
         }
       } catch (InterruptedException e) {

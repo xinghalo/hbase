@@ -40,16 +40,16 @@ public class SimpleRpcSchedulerFactory implements RpcSchedulerFactory {
 
   @Override
   public RpcScheduler create(Configuration conf, PriorityFunction priority, Abortable server) {
-    int handlerCount = conf.getInt(HConstants.REGION_SERVER_HANDLER_COUNT,
-		HConstants.DEFAULT_REGION_SERVER_HANDLER_COUNT);
+    // hbase.regionserver.handler.count 默认30
+    int handlerCount = conf.getInt(HConstants.REGION_SERVER_HANDLER_COUNT, HConstants.DEFAULT_REGION_SERVER_HANDLER_COUNT);
 
     return new SimpleRpcScheduler(
       conf,
       handlerCount,
-      conf.getInt(HConstants.REGION_SERVER_HIGH_PRIORITY_HANDLER_COUNT,
-        HConstants.DEFAULT_REGION_SERVER_HIGH_PRIORITY_HANDLER_COUNT),
-      conf.getInt(HConstants.REGION_SERVER_REPLICATION_HANDLER_COUNT,
-          HConstants.DEFAULT_REGION_SERVER_REPLICATION_HANDLER_COUNT),
+      // hbase.regionserver.metahandler.count 默认 20
+      conf.getInt(HConstants.REGION_SERVER_HIGH_PRIORITY_HANDLER_COUNT, HConstants.DEFAULT_REGION_SERVER_HIGH_PRIORITY_HANDLER_COUNT),
+      // hbase.regionserver.replication.handler.count 默认 3
+      conf.getInt(HConstants.REGION_SERVER_REPLICATION_HANDLER_COUNT,HConstants.DEFAULT_REGION_SERVER_REPLICATION_HANDLER_COUNT),
       priority,
       server,
       HConstants.QOS_THRESHOLD);

@@ -112,8 +112,9 @@ public class SimpleRpcScheduler extends RpcScheduler {
       PriorityFunction priority,
       Abortable server,
       int highPriorityLevel) {
+    // 默认是20
     int maxQueueLength = conf.getInt("hbase.ipc.server.max.callqueue.length",
-        handlerCount * RpcServer.DEFAULT_MAX_CALLQUEUE_LENGTH_PER_HANDLER);
+            handlerCount * RpcServer.DEFAULT_MAX_CALLQUEUE_LENGTH_PER_HANDLER);
     this.priority = priority;
     this.highPriorityLevel = highPriorityLevel;
     this.abortable = server;
@@ -123,10 +124,14 @@ public class SimpleRpcScheduler extends RpcScheduler {
     float callqScanShare = conf.getFloat(CALL_QUEUE_SCAN_SHARE_CONF_KEY, 0);
 
     float callQueuesHandlersFactor = conf.getFloat(CALL_QUEUE_HANDLER_FACTOR_CONF_KEY, 0);
+
+    // handlerCount = 30
+    // callQueuesHandlersFactor = 0
     int numCallQueues = Math.max(1, (int)Math.round(handlerCount * callQueuesHandlersFactor));
 
     LOG.info("Using " + callQueueType + " as user call queue, count=" + numCallQueues);
 
+    // 默认 numCallQueues=1，callqReadShare=0
     if (numCallQueues > 1 && callqReadShare > 0) {
       // multiple read/write queues
       if (callQueueType.equals(CALL_QUEUE_TYPE_DEADLINE_CONF_VALUE)) {
@@ -140,8 +145,11 @@ public class SimpleRpcScheduler extends RpcScheduler {
       }
     } else {
       // multiple queues
+      // 默认是deadline
       if (callQueueType.equals(CALL_QUEUE_TYPE_DEADLINE_CONF_VALUE)) {
         CallPriorityComparator callPriority = new CallPriorityComparator(conf, this.priority);
+        // numCallQueues = 1，因此服务端只有一个队列
+        // 使用一个有界优先级队列
         callExecutor = new BalancedQueueRpcExecutor("B.default", handlerCount, numCallQueues,
           conf, abortable, BoundedPriorityBlockingQueue.class, maxQueueLength, callPriority);
       } else {

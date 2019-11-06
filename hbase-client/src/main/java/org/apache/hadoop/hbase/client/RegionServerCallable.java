@@ -69,6 +69,7 @@ public abstract class RegionServerCallable<T> implements RetryingCallable<T> {
    */
   @Override
   public void prepare(final boolean reload) throws IOException {
+    // reload = (retries!= 0)，第一次不会重新加载；重试的时候会重新加载
     try (RegionLocator regionLocator = connection.getRegionLocator(tableName)) {
       this.location = regionLocator.getRegionLocation(row, reload);
     }

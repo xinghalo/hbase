@@ -63,7 +63,10 @@ public class RpcRetryingCaller<T> {
 
   private final long pause;
   private final int retries;
-  private final int rpcTimeout;// timeout for each rpc request
+  /**
+   * timeout for each rpc request
+   */
+  private final int rpcTimeout;
   private final AtomicBoolean cancelled = new AtomicBoolean(false);
   private final RetryingCallerInterceptor interceptor;
   private final RetryingCallerInterceptorContext context;
@@ -72,8 +75,7 @@ public class RpcRetryingCaller<T> {
     this(pause, retries, RetryingCallerInterceptorFactory.NO_OP_INTERCEPTOR, startLogErrorsCnt, 0);
   }
 
-  public RpcRetryingCaller(long pause, int retries,
-      RetryingCallerInterceptor interceptor, int startLogErrorsCnt, int rpcTimeout) {
+  public RpcRetryingCaller(long pause, int retries, RetryingCallerInterceptor interceptor, int startLogErrorsCnt, int rpcTimeout) {
     this.pause = pause;
     this.retries = retries;
     this.interceptor = interceptor;
@@ -130,10 +132,15 @@ public class RpcRetryingCaller<T> {
     for (int tries = 0;; tries++) {
       long expectedSleep;
       try {
+        // 执行的核心代码 <---------------------------------------------------------------
+
+        // 只有在第一次加载的时候执行prepare
         callable.prepare(tries != 0);
         // if called with false, check table status on ZK
         interceptor.intercept(context.prepare(callable, tries));
+        // 计算剩余的超时时间
         return callable.call(getTimeout(callTimeout));
+        // 执行的核心代码 <---------------------------------------------------------------
       } catch (PreemptiveFastFailException e) {
         throw e;
       } catch (Throwable t) {
@@ -261,7 +268,6 @@ public class RpcRetryingCaller<T> {
 
   @Override
   public String toString() {
-    return "RpcRetryingCaller{" + "globalStartTime=" + globalStartTime +
-        ", pause=" + pause + ", retries=" + retries + '}';
+    return "RpcRetryingCaller{" + "globalStartTime=" + globalStartTime + ", pause=" + pause + ", retries=" + retries + '}';
   }
 }

@@ -165,8 +165,7 @@ import com.google.protobuf.TextFormat;
 public class RpcServer implements RpcServerInterface, ConfigurationObserver {
   // LOG is being used in CallRunner and the log level is being changed in tests
   public static final Log LOG = LogFactory.getLog(RpcServer.class);
-  private static final CallQueueTooBigException CALL_QUEUE_TOO_BIG_EXCEPTION
-      = new CallQueueTooBigException();
+  private static final CallQueueTooBigException CALL_QUEUE_TOO_BIG_EXCEPTION = new CallQueueTooBigException();
 
   private final boolean authorize;
   private boolean isSecurityEnabled;
@@ -579,6 +578,8 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       super(name);
       backlogLength = conf.getInt("hbase.ipc.server.listen.queue.size", 128);
       // Create a new server socket and set to non blocking mode
+
+      // 非阻塞方式接收远程调用
       acceptChannel = ServerSocketChannel.open();
       acceptChannel.configureBlocking(false);
 
@@ -590,6 +591,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       // create a selector;
       selector= Selector.open();
 
+      // 使用线程池管理readers
       readers = new Reader[readThreads];
       readPool = Executors.newFixedThreadPool(readThreads,
         new ThreadFactoryBuilder().setNameFormat(
@@ -856,8 +858,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
             numConnections++;
           }
           if (LOG.isDebugEnabled())
-            LOG.debug(getName() + ": connection from " + c.toString() +
-                "; # active connections: " + numConnections);
+            LOG.debug(getName() + ": connection from " + c.toString() + "; # active connections: " + numConnections);
         } finally {
           reader.finishAdd();
         }
@@ -2030,8 +2031,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
    */
   public RpcServer(final Server server, final String name,
       final List<BlockingServiceAndInterface> services,
-      final InetSocketAddress bindAddress, Configuration conf,
-      RpcScheduler scheduler)
+      final InetSocketAddress bindAddress, Configuration conf, RpcScheduler scheduler)
       throws IOException {
 
     if (conf.getBoolean("hbase.ipc.server.reservoir.enabled", true)) {
@@ -2051,14 +2051,12 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
     this.bindAddress = bindAddress;
     this.conf = conf;
     this.socketSendBufferSize = 0;
-    this.maxQueueSize =
-      this.conf.getInt("hbase.ipc.server.max.callqueue.size", DEFAULT_MAX_CALLQUEUE_SIZE);
+    this.maxQueueSize =this.conf.getInt("hbase.ipc.server.max.callqueue.size", DEFAULT_MAX_CALLQUEUE_SIZE);
     this.readThreads = conf.getInt("hbase.ipc.server.read.threadpool.size", 10);
     this.maxIdleTime = 2 * conf.getInt("hbase.ipc.client.connection.maxidletime", 1000);
     this.maxConnectionsToNuke = conf.getInt("hbase.ipc.client.kill.max", 10);
     this.thresholdIdleConnections = conf.getInt("hbase.ipc.client.idlethreshold", 4000);
-    this.purgeTimeout = conf.getLong("hbase.ipc.client.call.purge.timeout",
-      2 * HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+    this.purgeTimeout = conf.getLong("hbase.ipc.client.call.purge.timeout",2 * HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
     this.warnResponseTime = conf.getInt(WARN_RESPONSE_TIME, DEFAULT_WARN_RESPONSE_TIME);
     this.warnResponseSize = conf.getInt(WARN_RESPONSE_SIZE, DEFAULT_WARN_RESPONSE_SIZE);
 
@@ -2613,22 +2611,18 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
    * @throws UnknownHostException if the address isn't a valid host name
    * @throws IOException other random errors from bind
    */
-  public static void bind(ServerSocket socket, InetSocketAddress address,
-                          int backlog) throws IOException {
+  public static void bind(ServerSocket socket, InetSocketAddress address, int backlog) throws IOException {
     try {
       socket.bind(address, backlog);
     } catch (BindException e) {
-      BindException bindException =
-        new BindException("Problem binding to " + address + " : " +
-            e.getMessage());
+      BindException bindException = new BindException("Problem binding to " + address + " : " + e.getMessage());
       bindException.initCause(e);
       throw bindException;
     } catch (SocketException e) {
       // If they try to bind to a different host's address, give a better
       // error message.
       if ("Unresolved address".equals(e.getMessage())) {
-        throw new UnknownHostException("Invalid hostname for server: " +
-                                       address.getHostName());
+        throw new UnknownHostException("Invalid hostname for server: " + address.getHostName());
       }
       throw e;
     }

@@ -37,11 +37,17 @@ import org.apache.hadoop.hbase.util.ReflectionUtils;
 @InterfaceStability.Evolving
 public class BalancedQueueRpcExecutor extends RpcExecutor {
 
+  /**
+   * 维护待执行的任务
+   */
   protected final List<BlockingQueue<CallRunner>> queues;
+
+  /**
+   * TODO 平衡器的作用
+   */
   private final QueueBalancer balancer;
 
-  public BalancedQueueRpcExecutor(final String name, final int handlerCount, final int numQueues,
-      final int maxQueueLength) {
+  public BalancedQueueRpcExecutor(final String name, final int handlerCount, final int numQueues, final int maxQueueLength) {
     this(name, handlerCount, numQueues, maxQueueLength, null, null);
   }
 
