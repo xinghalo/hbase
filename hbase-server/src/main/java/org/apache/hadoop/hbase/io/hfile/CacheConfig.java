@@ -529,14 +529,16 @@ public class CacheConfig {
    * @return An L1 instance.  Currently an instance of LruBlockCache.
    */
   private static LruBlockCache getL1(final Configuration c) {
+      // 可用内存的0.4
     final long lruCacheSize = HeapMemorySizeUtil.getLruCacheSize(c);
     if (lruCacheSize < 0) {
       blockCacheDisabled = true;
     }
     if (blockCacheDisabled) return null;
     int blockSize = c.getInt(BLOCKCACHE_BLOCKSIZE_KEY, HConstants.DEFAULT_BLOCKSIZE);
-    LOG.info("Allocating LruBlockCache size=" +
-      StringUtils.byteDesc(lruCacheSize) + ", blockSize=" + StringUtils.byteDesc(blockSize));
+    LOG.info("Allocating LruBlockCache size=" + StringUtils.byteDesc(lruCacheSize) + ", blockSize=" + StringUtils.byteDesc(blockSize));
+
+    // 内存的0.4，64*1024，true，conf
     return new LruBlockCache(lruCacheSize, blockSize, true, c);
   }
 
@@ -569,8 +571,7 @@ public class CacheConfig {
       klass = ExternalBlockCaches.valueOf(c.get(EXTERNAL_BLOCKCACHE_CLASS_KEY, "memcache")).clazz;
     } catch (IllegalArgumentException exception) {
       try {
-        klass = c.getClass(EXTERNAL_BLOCKCACHE_CLASS_KEY, Class.forName(
-            "org.apache.hadoop.hbase.io.hfile.MemcachedBlockCache"));
+        klass = c.getClass(EXTERNAL_BLOCKCACHE_CLASS_KEY, Class.forName("org.apache.hadoop.hbase.io.hfile.MemcachedBlockCache"));
       } catch (ClassNotFoundException e) {
         return null;
       }
@@ -639,17 +640,23 @@ public class CacheConfig {
    */
   public static synchronized BlockCache instantiateBlockCache(Configuration conf) {
     if (GLOBAL_BLOCK_CACHE_INSTANCE != null) return GLOBAL_BLOCK_CACHE_INSTANCE;
+
     if (blockCacheDisabled) return null;
+
+    // l1缓存就是 lru
     LruBlockCache l1 = getL1(conf);
+
     // blockCacheDisabled is set as a side-effect of getL1Internal(), so check it again after the call.
     if (blockCacheDisabled) return null;
+
+    // l2 缓存要么是外部缓存 要么是 bucketcache
     BlockCache l2 = getL2(conf);
+
     if (l2 == null) {
       GLOBAL_BLOCK_CACHE_INSTANCE = l1;
     } else {
       boolean useExternal = conf.getBoolean(EXTERNAL_BLOCKCACHE_KEY, EXTERNAL_BLOCKCACHE_DEFAULT);
-      boolean combinedWithLru = conf.getBoolean(BUCKET_CACHE_COMBINED_KEY,
-        DEFAULT_BUCKET_CACHE_COMBINED);
+      boolean combinedWithLru = conf.getBoolean(BUCKET_CACHE_COMBINED_KEY, DEFAULT_BUCKET_CACHE_COMBINED);
       if (useExternal) {
         GLOBAL_BLOCK_CACHE_INSTANCE = new InclusiveCombinedBlockCache(l1, l2);
       } else {

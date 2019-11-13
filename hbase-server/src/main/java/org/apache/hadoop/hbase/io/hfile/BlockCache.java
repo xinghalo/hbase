@@ -55,8 +55,7 @@ public interface BlockCache extends Iterable<CachedBlock> {
    * @param updateCacheMetrics Whether to update cache metrics or not
    * @return Block or null if block is not in 2 cache.
    */
-  Cacheable getBlock(BlockCacheKey cacheKey, boolean caching, boolean repeat,
-    boolean updateCacheMetrics);
+  Cacheable getBlock(BlockCacheKey cacheKey, boolean caching, boolean repeat, boolean updateCacheMetrics);
 
   /**
    * Evict block from cache.

@@ -1080,15 +1080,21 @@ public class KeyValue implements Cell, HeapSize, Cloneable, SettableSequenceId, 
 
     // Write key, value and key row length.
     int pos = 0;
+    // key length 和 value length
     pos = Bytes.putInt(bytes, pos, keyLength);
-
     pos = Bytes.putInt(bytes, pos, vlength);
+
+    // rowkey length
     pos = Bytes.putShort(bytes, pos, (short)(rlength & 0x0000ffff));
+    // rowkey
     pos = Bytes.putBytes(bytes, pos, row, roffset, rlength);
+    // cf length
     pos = Bytes.putByte(bytes, pos, (byte)(flength & 0x0000ff));
+    // cf
     if(flength != 0) {
       pos = Bytes.putBytes(bytes, pos, family, foffset, flength);
     }
+    // qualifier
     if (qlength > 0) {
       if (qualifier instanceof ByteBuffer) {
         pos = Bytes.putByteBuffer(bytes, pos, (ByteBuffer) qualifier);
@@ -1096,8 +1102,11 @@ public class KeyValue implements Cell, HeapSize, Cloneable, SettableSequenceId, 
         pos = Bytes.putBytes(bytes, pos, (byte[]) qualifier, qoffset, qlength);
       }
     }
+    // timestamp
     pos = Bytes.putLong(bytes, pos, timestamp);
+    // type
     pos = Bytes.putByte(bytes, pos, type.getCode());
+    // value
     if (vlength > 0) {
       if (value instanceof ByteBuffer) {
         pos = Bytes.putByteBuffer(bytes, pos, (ByteBuffer) value);

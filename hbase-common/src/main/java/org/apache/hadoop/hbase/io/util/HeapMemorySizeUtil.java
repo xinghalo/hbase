@@ -181,14 +181,13 @@ public class HeapMemorySizeUtil {
    * @throws IllegalArgumentException if HFILE_BLOCK_CACHE_SIZE_KEY is > 1.0
    */
   public static long getLruCacheSize(final Configuration conf) {
-    float cachePercentage = conf.getFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY,
-      HConstants.HFILE_BLOCK_CACHE_SIZE_DEFAULT);
+    // 默认0.4
+    float cachePercentage = conf.getFloat(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY, HConstants.HFILE_BLOCK_CACHE_SIZE_DEFAULT);
     if (cachePercentage <= 0.0001f) {
       return -1;
     }
     if (cachePercentage > 1.0) {
-      throw new IllegalArgumentException(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY +
-        " must be between 0.0 and 1.0, and not > 1.0");
+      throw new IllegalArgumentException(HConstants.HFILE_BLOCK_CACHE_SIZE_KEY + " must be between 0.0 and 1.0, and not > 1.0");
     }
     long max = -1L;
     final MemoryUsage usage = safeGetHeapMemoryUsage();
