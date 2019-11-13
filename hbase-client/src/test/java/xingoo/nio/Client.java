@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 
 public class Client {
 
@@ -11,15 +12,27 @@ public class Client {
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.connect(new InetSocketAddress(7778));
 
-
+        int count = 0;
         while(true){
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
-            buffer.put("hello".getBytes());
-            buffer.flip();
+            ByteBuffer out = ByteBuffer.allocate(1024);
+            ByteBuffer in = ByteBuffer.allocate(1024);
 
-            socketChannel.write(buffer);
+            // 写数据
+            String message = "来自client的第"+ count++ +"次请求";
+            out.put(message.getBytes());
+            out.flip();
+            socketChannel.write(out);
+            out.compact();
 
-            Thread.sleep(2000);
+            // 读数据
+            int length = socketChannel.read(in);
+            if(length > 0){
+                in.flip();
+                System.out.println(new String(in.array(), StandardCharsets.UTF_8));
+                in.compact();
+            }
+
+            Thread.sleep(500);
         }
     }
 }

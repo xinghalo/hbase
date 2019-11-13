@@ -217,8 +217,7 @@ public class StoreFileInfo {
    * @param cacheConf The cache configuration and block cache reference.
    * @return The StoreFile.Reader for the file
    */
-  public StoreFile.Reader open(final FileSystem fs,
-      final CacheConfig cacheConf, final boolean canUseDropBehind) throws IOException {
+  public StoreFile.Reader open(final FileSystem fs, final CacheConfig cacheConf, final boolean canUseDropBehind) throws IOException {
     FSDataInputStreamWrapper in;
     FileStatus status;
 
@@ -230,12 +229,10 @@ public class StoreFileInfo {
     } else if (this.reference != null) {
       // HFile Reference
       Path referencePath = getReferredToFile(this.getPath());
-      in = new FSDataInputStreamWrapper(fs, referencePath,
-          doDropBehind);
+      in = new FSDataInputStreamWrapper(fs, referencePath, doDropBehind);
       status = fs.getFileStatus(referencePath);
     } else {
-      in = new FSDataInputStreamWrapper(fs, this.getPath(),
-          doDropBehind);
+      in = new FSDataInputStreamWrapper(fs, this.getPath(), doDropBehind);
       status = fs.getFileStatus(initialPath);
     }
     long length = status.getLen();
@@ -243,20 +240,17 @@ public class StoreFileInfo {
 
     StoreFile.Reader reader = null;
     if (this.coprocessorHost != null) {
-      reader = this.coprocessorHost.preStoreFileReaderOpen(fs, this.getPath(), in, length,
-        cacheConf, reference);
+      reader = this.coprocessorHost.preStoreFileReaderOpen(fs, this.getPath(), in, length, cacheConf, reference);
     }
     if (reader == null) {
       if (this.reference != null) {
-        reader = new HalfStoreFileReader(fs, this.getPath(), in, length, cacheConf, reference,
-          conf);
+        reader = new HalfStoreFileReader(fs, this.getPath(), in, length, cacheConf, reference, conf);
       } else {
         reader = new StoreFile.Reader(fs, status.getPath(), in, length, cacheConf, conf);
       }
     }
     if (this.coprocessorHost != null) {
-      reader = this.coprocessorHost.postStoreFileReaderOpen(fs, this.getPath(), in, length,
-        cacheConf, reference, reader);
+      reader = this.coprocessorHost.postStoreFileReaderOpen(fs, this.getPath(), in, length, cacheConf, reference, reader);
     }
     return reader;
   }

@@ -1371,8 +1371,7 @@ public class HFileBlock implements Cacheable {
     }
 
     @Override
-    public BlockIterator blockRange(final long startOffset,
-        final long endOffset) {
+    public BlockIterator blockRange(final long startOffset, final long endOffset) {
       final FSReader owner = this; // handle for inner class
       return new BlockIterator() {
         private long offset = startOffset;

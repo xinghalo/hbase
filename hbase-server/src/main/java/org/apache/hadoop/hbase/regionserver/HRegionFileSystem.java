@@ -157,7 +157,8 @@ public class HRegionFileSystem {
    * @return {@link Path} to the directory of the specified family
    */
   public Path getStoreDir(final String familyName) {
-    return new Path(this.getRegionDir(), familyName);
+      // tablepath + regioninfo encoded + f
+      return new Path(this.getRegionDir(), familyName);
   }
 
   /**
@@ -193,14 +194,15 @@ public class HRegionFileSystem {
    * @param familyName Column Family Name
    * @return a set of {@link StoreFileInfo} for the specified family.
    */
-  public Collection<StoreFileInfo> getStoreFiles(final String familyName, final boolean validate)
-      throws IOException {
-    Path familyDir = getStoreDir(familyName);
-    FileStatus[] files = FSUtils.listStatus(this.fs, familyDir);
-    if (files == null) {
-      LOG.debug("No StoreFiles for: " + familyDir);
-      return null;
-    }
+  public Collection<StoreFileInfo> getStoreFiles(final String familyName, final boolean validate) throws IOException {
+      // table path + region info encoded + column family
+      Path familyDir = getStoreDir(familyName);
+      FileStatus[] files = FSUtils.listStatus(this.fs, familyDir);
+
+      if (files == null) {
+          LOG.debug("No StoreFiles for: " + familyDir);
+          return null;
+      }
 
     ArrayList<StoreFileInfo> storeFiles = new ArrayList<StoreFileInfo>(files.length);
     for (FileStatus status: files) {
@@ -208,8 +210,7 @@ public class HRegionFileSystem {
         LOG.warn("Invalid StoreFile: " + status.getPath());
         continue;
       }
-      StoreFileInfo info = ServerRegionReplicaUtil.getStoreFileInfo(conf, fs, regionInfo,
-        regionInfoForFs, familyName, status.getPath());
+      StoreFileInfo info = ServerRegionReplicaUtil.getStoreFileInfo(conf, fs, regionInfo, regionInfoForFs, familyName, status.getPath());
       storeFiles.add(info);
 
     }

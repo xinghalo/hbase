@@ -276,8 +276,7 @@ public class StoreFileScanner implements KeyValueScanner {
    * @return false if not found or if k is after the end.
    * @throws IOException
    */
-  public static boolean seekAtOrAfter(HFileScanner s, Cell k)
-  throws IOException {
+  public static boolean seekAtOrAfter(HFileScanner s, Cell k) throws IOException {
     int result = s.seekTo(k);
     if(result < 0) {
       if (result == HConstants.INDEX_KEY_MAGIC) {

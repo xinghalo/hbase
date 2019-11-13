@@ -94,8 +94,7 @@ public abstract class Mutation extends OperationWithAttributes implements Row, C
   protected Durability durability = Durability.USE_DEFAULT;
 
   // A Map sorted by column family.
-  protected NavigableMap<byte [], List<Cell>> familyMap =
-    new TreeMap<byte [], List<Cell>>(Bytes.BYTES_COMPARATOR);
+  protected NavigableMap<byte [], List<Cell>> familyMap = new TreeMap<byte [], List<Cell>>(Bytes.BYTES_COMPARATOR);
 
   @Override
   public CellScanner cellScanner() {

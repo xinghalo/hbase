@@ -194,6 +194,8 @@ import com.google.protobuf.TextFormat;
 
 /**
  * Implements the regionserver RPC services.
+ *
+ * region server rpc实现类。
  */
 @InterfaceAudience.Private
 @SuppressWarnings("deprecation")
@@ -955,6 +957,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     // Set how many times to retry talking to another server over HConnection.
     ConnectionUtils.setServerSideHConnectionRetriesConfig(rs.conf, name, LOG);
     try {
+      // 创建rpc server，主要是这个getServices()获得处理方法的实现对象
       rpcServer = new RpcServer(rs, name, getServices(),
           bindAddress, // use final bindAddress for this server.
           rs.conf,
@@ -1116,6 +1119,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
   }
 
   void start() {
+    // TODO scan的id生成器
     this.scannerIdGenerator = new ScannerIdGenerator(this.regionServer.serverName);
     rpcServer.start();
   }
@@ -1150,12 +1154,8 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
    */
   protected List<BlockingServiceAndInterface> getServices() {
     List<BlockingServiceAndInterface> bssi = new ArrayList<BlockingServiceAndInterface>(2);
-    bssi.add(new BlockingServiceAndInterface(
-      ClientService.newReflectiveBlockingService(this),
-      ClientService.BlockingInterface.class));
-    bssi.add(new BlockingServiceAndInterface(
-      AdminService.newReflectiveBlockingService(this),
-      AdminService.BlockingInterface.class));
+    bssi.add(new BlockingServiceAndInterface(ClientService.newReflectiveBlockingService(this), ClientService.BlockingInterface.class));
+    bssi.add(new BlockingServiceAndInterface(AdminService.newReflectiveBlockingService(this), AdminService.BlockingInterface.class));
     return bssi;
   }
 
@@ -2045,15 +2045,17 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
    * @throws ServiceException
    */
   @Override
-  public GetResponse get(final RpcController controller,
-      final GetRequest request) throws ServiceException {
+  public GetResponse get(final RpcController controller, final GetRequest request) throws ServiceException {
     long before = EnvironmentEdgeManager.currentTime();
     OperationQuota quota = null;
     try {
       checkOpen();
       requestCount.increment();
+
+      // 获得region
       Region region = getRegion(request.getRegion());
 
+      // 构建getresp
       GetResponse.Builder builder = GetResponse.newBuilder();
       ClientProtos.Get get = request.getGet();
       Boolean existence = null;
@@ -2063,8 +2065,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       if (get.hasClosestRowBefore() && get.getClosestRowBefore()) {
         if (get.getColumnCount() != 1) {
           throw new DoNotRetryIOException(
-            "get ClosestRowBefore supports one and only one family now, not "
-              + get.getColumnCount() + " families");
+            "get ClosestRowBefore supports one and only one family now, not " + get.getColumnCount() + " families");
         }
         byte[] row = get.getRow().toByteArray();
         byte[] family = get.getColumn(0).getFamily().toByteArray();
@@ -2291,18 +2292,14 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
           byte[] family = condition.getFamily().toByteArray();
           byte[] qualifier = condition.getQualifier().toByteArray();
           CompareOp compareOp = CompareOp.valueOf(condition.getCompareType().name());
-          ByteArrayComparable comparator =
-            ProtobufUtil.toComparator(condition.getComparator());
+          ByteArrayComparable comparator = ProtobufUtil.toComparator(condition.getComparator());
           if (region.getCoprocessorHost() != null) {
-            processed = region.getCoprocessorHost().preCheckAndPut(
-              row, family, qualifier, compareOp, comparator, put);
+            processed = region.getCoprocessorHost().preCheckAndPut(row, family, qualifier, compareOp, comparator, put);
           }
           if (processed == null) {
-            boolean result = region.checkAndMutate(row, family,
-              qualifier, compareOp, comparator, put, true);
+            boolean result = region.checkAndMutate(row, family, qualifier, compareOp, comparator, put, true);
             if (region.getCoprocessorHost() != null) {
-              result = region.getCoprocessorHost().postCheckAndPut(row, family,
-                qualifier, compareOp, comparator, put, result);
+              result = region.getCoprocessorHost().postCheckAndPut(row, family,qualifier, compareOp, comparator, put, result);
             }
             processed = result;
           }

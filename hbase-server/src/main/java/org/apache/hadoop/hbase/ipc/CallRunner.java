@@ -109,7 +109,10 @@ public class CallRunner {
           traceScope = Trace.startSpan(call.toTraceString(), call.tinfo);
         }
         // make the call
+        // call.service 执行callBlockingMethod方法
+        // 主要参数，md，param，以及cellScanner构造的controller
         resultPair = this.rpcServer.call(call.service, call.md, call.param, call.cellScanner, call.timestamp, this.status);
+
       } catch (Throwable e) {
         RpcServer.LOG.debug(Thread.currentThread().getName() + ": " + call.toShortString(), e);
         errorThrowable = e;

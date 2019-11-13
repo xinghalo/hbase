@@ -120,25 +120,20 @@ public class HFilePrettyPrinter extends Configured implements Tool {
   }
 
   private void init() {
-    options.addOption("v", "verbose", false,
-        "Verbose output; emits file and meta data delimiters");
+    options.addOption("v", "verbose", false,"Verbose output; emits file and meta data delimiters");
     options.addOption("p", "printkv", false, "Print key/value pairs");
     options.addOption("e", "printkey", false, "Print keys");
     options.addOption("m", "printmeta", false, "Print meta data of file");
     options.addOption("b", "printblocks", false, "Print block index meta data");
     options.addOption("h", "printblockheaders", false, "Print block headers for each block.");
-    options.addOption("k", "checkrow", false,
-        "Enable row order check; looks for out-of-order keys");
+    options.addOption("k", "checkrow", false, "Enable row order check; looks for out-of-order keys");
     options.addOption("a", "checkfamily", false, "Enable family check");
-    options.addOption("w", "seekToRow", true,
-      "Seek to this row and print all the kvs for this row only");
+    options.addOption("w", "seekToRow", true,  "Seek to this row and print all the kvs for this row only");
     options.addOption("s", "stats", false, "Print statistics");
 
     OptionGroup files = new OptionGroup();
-    files.addOption(new Option("f", "file", true,
-      "File to scan. Pass full-path; e.g. hdfs://a:9000/hbase/hbase:meta/12/34"));
-    files.addOption(new Option("r", "region", true,
-      "Region to scan. Pass region name; e.g. 'hbase:meta,,1'"));
+    files.addOption(new Option("f", "file", true,"File to scan. Pass full-path; e.g. hdfs://a:9000/hbase/hbase:meta/12/34"));
+    files.addOption(new Option("r", "region", true,"Region to scan. Pass region name; e.g. 'hbase:meta,,1'"));
     options.addOptionGroup(files);
   }
 
@@ -414,11 +409,9 @@ public class HFilePrettyPrinter extends Configured implements Tool {
 
   private void printMeta(HFile.Reader reader, Map<byte[], byte[]> fileInfo)
       throws IOException {
-    out.println("Block index size as per heapsize: "
-        + reader.indexSize());
+    out.println("Block index size as per heapsize: " + reader.indexSize());
     out.println(asSeparateLines(reader.toString()));
-    out.println("Trailer:\n    "
-        + asSeparateLines(reader.getTrailer().toString()));
+    out.println("Trailer:\n    "+ asSeparateLines(reader.getTrailer().toString()));
     out.println("Fileinfo:");
     for (Map.Entry<byte[], byte[]> e : fileInfo.entrySet()) {
       out.print(FOUR_SPACES + Bytes.toString(e.getKey()) + " = ");
@@ -429,10 +422,8 @@ public class HFilePrettyPrinter extends Configured implements Tool {
 
         TimeRangeTracker timeRangeTracker = new TimeRangeTracker();
         Writables.copyWritable(e.getValue(), timeRangeTracker);
-        out.println(timeRangeTracker.getMinimumTimestamp() + "...."
-            + timeRangeTracker.getMaximumTimestamp());
-      } else if (Bytes.compareTo(e.getKey(), FileInfo.AVG_KEY_LEN) == 0
-          || Bytes.compareTo(e.getKey(), FileInfo.AVG_VALUE_LEN) == 0) {
+        out.println(timeRangeTracker.getMinimumTimestamp() + "...." + timeRangeTracker.getMaximumTimestamp());
+      } else if (Bytes.compareTo(e.getKey(), FileInfo.AVG_KEY_LEN) == 0 || Bytes.compareTo(e.getKey(), FileInfo.AVG_VALUE_LEN) == 0) {
         out.println(Bytes.toInt(e.getValue()));
       } else {
         out.println(Bytes.toStringBinary(e.getValue()));

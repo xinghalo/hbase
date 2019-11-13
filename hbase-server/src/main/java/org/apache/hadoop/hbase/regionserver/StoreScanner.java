@@ -55,8 +55,7 @@ import com.google.common.annotations.VisibleForTesting;
  * into List&lt;KeyValue&gt; for a single row.
  */
 @InterfaceAudience.Private
-public class StoreScanner extends NonReversedNonLazyKeyValueScanner
-    implements KeyValueScanner, InternalScanner, ChangedReadersObserver {
+public class StoreScanner extends NonReversedNonLazyKeyValueScanner implements KeyValueScanner, InternalScanner, ChangedReadersObserver {
   private static final Log LOG = LogFactory.getLog(StoreScanner.class);
   // In unit tests, the store could be null
   protected final Store store;
@@ -96,12 +95,10 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
 
   /** We don't ever expect to change this, the constant is just for clarity. */
   static final boolean LAZY_SEEK_ENABLED_BY_DEFAULT = true;
-  public static final String STORESCANNER_PARALLEL_SEEK_ENABLE =
-      "hbase.storescanner.parallel.seek.enable";
+  public static final String STORESCANNER_PARALLEL_SEEK_ENABLE = "hbase.storescanner.parallel.seek.enable";
 
   /** Used during unit testing to ensure that lazy seek does save seek ops */
-  protected static boolean lazySeekEnabledGlobally =
-      LAZY_SEEK_ENABLED_BY_DEFAULT;
+  protected static boolean lazySeekEnabledGlobally = LAZY_SEEK_ENABLED_BY_DEFAULT;
 
   /**
    * The number of cells scanned in between timeout checks. Specifying a larger value means that
@@ -133,8 +130,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
   }
 
   /** An internal constructor. */
-  protected StoreScanner(Store store, Scan scan, final ScanInfo scanInfo,
-      final NavigableSet<byte[]> columns, long readPt, boolean cacheBlocks) {
+  protected StoreScanner(Store store, Scan scan, final ScanInfo scanInfo, final NavigableSet<byte[]> columns, long readPt, boolean cacheBlocks) {
     this.readPt = readPt;
     this.store = store;
     this.cacheBlocks = cacheBlocks;
@@ -167,17 +163,14 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
   }
 
   /**
-   * Opens a scanner across memstore, snapshot, and all StoreFiles. Assumes we
-   * are not in a compaction.
+   * Opens a scanner across memstore, snapshot, and all StoreFiles. Assumes we are not in a compaction.
    *
    * @param store who we scan
    * @param scan the spec
    * @param columns which columns we are scanning
    * @throws IOException
    */
-  public StoreScanner(Store store, ScanInfo scanInfo, Scan scan, final NavigableSet<byte[]> columns,
-      long readPt)
-  throws IOException {
+  public StoreScanner(Store store, ScanInfo scanInfo, Scan scan, final NavigableSet<byte[]> columns, long readPt) throws IOException {
     this(store, scan, scanInfo, columns, readPt, scan.getCacheBlocks());
     if (columns != null && scan.isRaw()) {
       throw new DoNotRetryIOException("Cannot specify any column for a raw scan");
@@ -196,8 +189,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
       // key does not exist, then to the start of the next matching Row).
       // Always check bloom filter to optimize the top row seek for delete
       // family marker.
-      seekScanners(scanners, matcher.getStartKey(), explicitColumnQuery && lazySeekEnabledGlobally,
-        parallelSeekEnabled);
+      seekScanners(scanners, matcher.getStartKey(), explicitColumnQuery && lazySeekEnabledGlobally, parallelSeekEnabled);
 
       // set storeLimit
       this.storeLimit = scan.getMaxResultsPerColumnFamily();
@@ -207,6 +199,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
 
       // Combine all seeked scanners with a heap
       resetKVHeap(scanners, store.getComparator());
+
     } catch (IOException e) {
       // remove us from the HStore#changedReaderObservers here or we'll have no chance to
       // and might cause memory leak
@@ -328,9 +321,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
    * @param isParallelSeek true if using parallel seek
    * @throws IOException
    */
-  protected void seekScanners(List<? extends KeyValueScanner> scanners,
-      Cell seekKey, boolean isLazy, boolean isParallelSeek)
-      throws IOException {
+  protected void seekScanners(List<? extends KeyValueScanner> scanners, Cell seekKey, boolean isLazy, boolean isParallelSeek) throws IOException {
     // Seek all scanners to the start of the Row (or if the exact matching row
     // key does not exist, then to the start of the next matching Row).
     // Always check bloom filter to optimize the top row seek for delete
@@ -359,8 +350,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     }
   }
 
-  protected void resetKVHeap(List<? extends KeyValueScanner> scanners,
-      KVComparator comparator) throws IOException {
+  protected void resetKVHeap(List<? extends KeyValueScanner> scanners, KVComparator comparator) throws IOException {
     // Combine all seeked scanners with a heap
     heap = new KeyValueHeap(scanners, comparator);
   }
@@ -476,8 +466,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
       return scannerContext.setScannerState(NextState.MORE_VALUES).hasMoreValues();
     }
 
-    // if the heap was left null, then the scanners had previously run out anyways, close and
-    // return.
+    // if the heap was left null, then the scanners had previously run out anyways, close and return.
     if (this.heap == null) {
       close();
       return scannerContext.setScannerState(NextState.NO_MORE_VALUES).hasMoreValues();
@@ -507,8 +496,7 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     if (!scannerContext.getKeepProgress()) scannerContext.clearProgress();
     
     // Only do a sanity-check if store and comparator are available.
-    KeyValue.KVComparator comparator =
-        store != null ? store.getComparator() : null;
+    KeyValue.KVComparator comparator = store != null ? store.getComparator() : null;
 
     int count = 0;
     long totalBytesRead = 0;
@@ -829,17 +817,14 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
    * @param kv the KeyValue on which the operation is being requested
    * @throws IOException
    */
-  private void parallelSeek(final List<? extends KeyValueScanner>
-      scanners, final Cell kv) throws IOException {
+  private void parallelSeek(final List<? extends KeyValueScanner> scanners, final Cell kv) throws IOException {
     if (scanners.isEmpty()) return;
     int storeFileScannerCount = scanners.size();
     CountDownLatch latch = new CountDownLatch(storeFileScannerCount);
-    List<ParallelSeekHandler> handlers = 
-        new ArrayList<ParallelSeekHandler>(storeFileScannerCount);
+    List<ParallelSeekHandler> handlers = new ArrayList<ParallelSeekHandler>(storeFileScannerCount);
     for (KeyValueScanner scanner : scanners) {
       if (scanner instanceof StoreFileScanner) {
-        ParallelSeekHandler seekHandler = new ParallelSeekHandler(scanner, kv,
-          this.readPt, latch);
+        ParallelSeekHandler seekHandler = new ParallelSeekHandler(scanner, kv, this.readPt, latch);
         executor.submit(seekHandler);
         handlers.add(seekHandler);
       } else {

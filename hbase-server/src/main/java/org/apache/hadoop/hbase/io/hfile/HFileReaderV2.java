@@ -120,56 +120,53 @@ public class HFileReaderV2 extends AbstractHFileReader {
    * @param hfs
    * @param conf
    */
-  public HFileReaderV2(final Path path, final FixedFileTrailer trailer,
-      final FSDataInputStreamWrapper fsdis, final long size, final CacheConfig cacheConf,
-      final HFileSystem hfs, final Configuration conf) throws IOException {
+  public HFileReaderV2(final Path path,
+                       final FixedFileTrailer trailer,
+                       final FSDataInputStreamWrapper fsdis,
+                       final long size,
+                       final CacheConfig cacheConf,
+                       final HFileSystem hfs,
+                       final Configuration conf) throws IOException {
     super(path, trailer, size, cacheConf, hfs, conf);
+
     this.conf = conf;
+
+    // 校验版本号，需要保证majorvesion=2,minorversion在0-3之间
     trailer.expectMajorVersion(getMajorVersion());
     validateMinorVersion(path, trailer.getMinorVersion());
     this.hfileContext = createHFileContext(fsdis, fileSize, hfs, path, trailer);
-    HFileBlock.FSReaderImpl fsBlockReaderV2 =
-      new HFileBlock.FSReaderImpl(fsdis, fileSize, hfs, path, hfileContext);
-    this.fsBlockReader = fsBlockReaderV2; // upcast
+
+    // fs reader
+    HFileBlock.FSReaderImpl fsBlockReaderV2 = new HFileBlock.FSReaderImpl(fsdis, fileSize, hfs, path, hfileContext);
+
+    // upcast
+    this.fsBlockReader = fsBlockReaderV2;
 
     // Comparator class name is stored in the trailer in version 2.
     comparator = trailer.createComparator();
-    dataBlockIndexReader = new HFileBlockIndex.BlockIndexReader(comparator,
-        trailer.getNumDataIndexLevels(), this);
-    metaBlockIndexReader = new HFileBlockIndex.BlockIndexReader(
-        KeyValue.RAW_COMPARATOR, 1);
+    dataBlockIndexReader = new HFileBlockIndex.BlockIndexReader(comparator, trailer.getNumDataIndexLevels(), this);
+    metaBlockIndexReader = new HFileBlockIndex.BlockIndexReader(KeyValue.RAW_COMPARATOR, 1);
 
     // Parse load-on-open data.
+    // 锁定block的range，trailer中的load on open offset --> file size - trailer size
+    HFileBlock.BlockIterator blockIter = fsBlockReaderV2.blockRange(trailer.getLoadOnOpenDataOffset(), fileSize - trailer.getTrailerSize());
 
-    HFileBlock.BlockIterator blockIter = fsBlockReaderV2.blockRange(
-        trailer.getLoadOnOpenDataOffset(),
-        fileSize - trailer.getTrailerSize());
-
-    // Data index. We also read statistics about the block index written after
-    // the root level.
-    dataBlockIndexReader.readMultiLevelIndexRoot(
-        blockIter.nextBlockWithBlockType(BlockType.ROOT_INDEX),
-        trailer.getDataIndexCount());
+    // Data index. We also read statistics about the block index written after the root level.
+    dataBlockIndexReader.readMultiLevelIndexRoot(blockIter.nextBlockWithBlockType(BlockType.ROOT_INDEX), trailer.getDataIndexCount());
 
     // Meta index.
-    metaBlockIndexReader.readRootIndex(
-        blockIter.nextBlockWithBlockType(BlockType.ROOT_INDEX),
-        trailer.getMetaIndexCount());
+    metaBlockIndexReader.readRootIndex(blockIter.nextBlockWithBlockType(BlockType.ROOT_INDEX), trailer.getMetaIndexCount());
 
     // File info
     fileInfo = new FileInfo();
     fileInfo.read(blockIter.nextBlockWithBlockType(BlockType.FILE_INFO).getByteStream());
     byte[] creationTimeBytes = fileInfo.get(FileInfo.CREATE_TIME_TS);
-    this.hfileContext.setFileCreateTime(creationTimeBytes == null? 0:
-      Bytes.toLong(creationTimeBytes));
+    this.hfileContext.setFileCreateTime(creationTimeBytes == null? 0: Bytes.toLong(creationTimeBytes));
     lastKey = fileInfo.get(FileInfo.LASTKEY);
     avgKeyLen = Bytes.toInt(fileInfo.get(FileInfo.AVG_KEY_LEN));
     avgValueLen = Bytes.toInt(fileInfo.get(FileInfo.AVG_VALUE_LEN));
-    byte [] keyValueFormatVersion =
-        fileInfo.get(HFileWriterV2.KEY_VALUE_VERSION);
-    includesMemstoreTS = keyValueFormatVersion != null &&
-        Bytes.toInt(keyValueFormatVersion) ==
-            HFileWriterV2.KEY_VALUE_VER_WITH_MEMSTORE;
+    byte [] keyValueFormatVersion = fileInfo.get(HFileWriterV2.KEY_VALUE_VERSION);
+    includesMemstoreTS = keyValueFormatVersion != null && Bytes.toInt(keyValueFormatVersion) == HFileWriterV2.KEY_VALUE_VER_WITH_MEMSTORE;
     fsBlockReaderV2.setIncludesMemstoreTS(includesMemstoreTS);
     if (includesMemstoreTS) {
       decodeMemstoreTS = Bytes.toLong(fileInfo.get(HFileWriterV2.MAX_MEMSTORE_TS_KEY)) > 0;
@@ -899,7 +896,7 @@ public class HFileReaderV2 extends AbstractHFileReader {
      * @throws IOException
      */
     @Override
-    public boolean seekTo() throws IOException {
+    public boolean  seekTo() throws IOException {
       if (reader == null) {
         return false;
       }
@@ -909,8 +906,7 @@ public class HFileReaderV2 extends AbstractHFileReader {
         return false;
       }
 
-      long firstDataBlockOffset =
-          reader.getTrailer().getFirstDataBlockOffset();
+      long firstDataBlockOffset = reader.getTrailer().getFirstDataBlockOffset();
       if (block != null && block.getOffset() == firstDataBlockOffset) {
         blockBuffer.rewind();
         readKeyValueLen();
@@ -918,7 +914,8 @@ public class HFileReaderV2 extends AbstractHFileReader {
       }
 
       block = reader.readBlock(firstDataBlockOffset, -1, cacheBlocks, pread,
-          isCompaction, true, BlockType.DATA, getEffectiveDataBlockEncoding());
+              isCompaction, true, BlockType.DATA, getEffectiveDataBlockEncoding());
+
       if (block.getOffset() < 0) {
         throw new IOException("Invalid block offset: " + block.getOffset());
       }

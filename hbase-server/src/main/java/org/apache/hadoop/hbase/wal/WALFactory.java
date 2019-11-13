@@ -77,7 +77,7 @@ public class WALFactory {
   static enum Providers {
     defaultProvider(DefaultWALProvider.class),
     filesystem(DefaultWALProvider.class),
-    multiwal(BoundedRegionGroupingProvider.class);
+    multiwal(BoundedRegionGroupingProvider.class); // 线上集群默认就是这个
 
     Class<? extends WALProvider> clazz;
     Providers(Class<? extends WALProvider> clazz) {
@@ -117,8 +117,7 @@ public class WALFactory {
     // happen prior to provider initialization, in case they need to instantiate a reader/writer.
     timeoutMillis = conf.getInt("hbase.hlog.open.timeout", 300000);
     /* TODO Both of these are probably specific to the fs wal provider */
-    logReaderClass = conf.getClass("hbase.regionserver.hlog.reader.impl", ProtobufLogReader.class,
-        DefaultWALProvider.Reader.class);
+    logReaderClass = conf.getClass("hbase.regionserver.hlog.reader.impl", ProtobufLogReader.class, DefaultWALProvider.Reader.class);
     this.conf = conf;
     // end required early initialization
 
@@ -131,8 +130,7 @@ public class WALFactory {
    * instantiate a provider from a config property.
    * requires conf to have already been set (as well as anything the provider might need to read).
    */
-  WALProvider getProvider(final String key, final String defaultValue,
-      final List<WALActionsListener> listeners, final String providerId) throws IOException {
+  WALProvider getProvider(final String key, final String defaultValue, final List<WALActionsListener> listeners, final String providerId) throws IOException {
     Class<? extends WALProvider> clazz;
     try {
       clazz = Providers.valueOf(conf.get(key, defaultValue)).clazz;
@@ -165,14 +163,12 @@ public class WALFactory {
    * @param factoryId a unique identifier for this factory. used i.e. by filesystem implementations
    *     to make a directory
    */
-  public WALFactory(final Configuration conf, final List<WALActionsListener> listeners,
-      final String factoryId) throws IOException {
+  public WALFactory(final Configuration conf, final List<WALActionsListener> listeners, final String factoryId) throws IOException {
     // until we've moved reader/writer construction down into providers, this initialization must
     // happen prior to provider initialization, in case they need to instantiate a reader/writer.
     timeoutMillis = conf.getInt("hbase.hlog.open.timeout", 300000);
     /* TODO Both of these are probably specific to the fs wal provider */
-    logReaderClass = conf.getClass("hbase.regionserver.hlog.reader.impl", ProtobufLogReader.class,
-        DefaultWALProvider.Reader.class);
+    logReaderClass = conf.getClass("hbase.regionserver.hlog.reader.impl", ProtobufLogReader.class, DefaultWALProvider.Reader.class);
     this.conf = conf;
     this.factoryId = factoryId;
     // end required early initialization

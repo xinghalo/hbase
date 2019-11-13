@@ -90,8 +90,7 @@ import com.google.protobuf.Service;
  */
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.COPROC)
 @InterfaceStability.Evolving
-public class RegionCoprocessorHost
-    extends CoprocessorHost<RegionCoprocessorHost.RegionEnvironment> {
+public class RegionCoprocessorHost extends CoprocessorHost<RegionCoprocessorHost.RegionEnvironment> {
 
   private static final Log LOG = LogFactory.getLog(RegionCoprocessorHost.class);
   // The shared data map

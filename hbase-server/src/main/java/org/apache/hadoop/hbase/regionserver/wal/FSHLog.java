@@ -442,6 +442,7 @@ public class FSHLog implements WAL {
       final List<WALActionsListener> listeners,
       final boolean failIfWALExists, final String prefix, final String suffix)
       throws IOException {
+
     this.fs = fs;
     this.fullPathLogDir = new Path(rootDir, logDir);
     this.fullPathArchiveDir = new Path(rootDir, archiveDir);
@@ -547,8 +548,7 @@ public class FSHLog implements WAL {
     // This is the 'writer' -- a single threaded executor.  This single thread 'consumes' what is
     // put on the ring buffer.
     String hostingThreadName = Thread.currentThread().getName();
-    this.appendExecutor = Executors.
-      newSingleThreadExecutor(Threads.getNamedThreadFactory(hostingThreadName + ".append"));
+    this.appendExecutor = Executors.newSingleThreadExecutor(Threads.getNamedThreadFactory(hostingThreadName + ".append"));
     // Preallocate objects to use on the ring buffer.  The way that appends and syncs work, we will
     // be stuck and make no progress if the buffer is filled with appends only and there is no
     // sync. If no sync, then the handlers will be outstanding just waiting on sync completion
@@ -557,15 +557,12 @@ public class FSHLog implements WAL {
       this.conf.getInt("hbase.regionserver.wal.disruptor.event.count", 1024 * 16);
     // Using BlockingWaitStrategy.  Stuff that is going on here takes so long it makes no sense
     // spinning as other strategies do.
-    this.disruptor =
-      new Disruptor<RingBufferTruck>(RingBufferTruck.EVENT_FACTORY, preallocatedEventCount,
-        this.appendExecutor, ProducerType.MULTI, new BlockingWaitStrategy());
+    this.disruptor = new Disruptor<RingBufferTruck>(RingBufferTruck.EVENT_FACTORY, preallocatedEventCount,
+            this.appendExecutor, ProducerType.MULTI, new BlockingWaitStrategy());
     // Advance the ring buffer sequence so that it starts from 1 instead of 0,
     // because SyncFuture.NOT_DONE = 0.
     this.disruptor.getRingBuffer().next();
-    this.ringBufferEventHandler =
-      new RingBufferEventHandler(conf.getInt("hbase.regionserver.hlog.syncer.count", 5),
-        maxHandlersCount);
+    this.ringBufferEventHandler = new RingBufferEventHandler(conf.getInt("hbase.regionserver.hlog.syncer.count", 5), maxHandlersCount);
     this.disruptor.handleExceptionsWith(new RingBufferExceptionHandler());
     this.disruptor.handleEventsWith(new RingBufferEventHandler [] {this.ringBufferEventHandler});
     this.cachedSyncFutures = new ThreadLocal<SyncFuture>() {
@@ -1098,11 +1095,9 @@ public class FSHLog implements WAL {
     }
   }
 
-  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="NP_NULL_ON_SOME_PATH_EXCEPTION",
-      justification="Will never be null")
+  @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="NP_NULL_ON_SOME_PATH_EXCEPTION", justification="Will never be null")
   @Override
-  public long append(final HTableDescriptor htd, final HRegionInfo hri, final WALKey key,
-      final WALEdit edits, final boolean inMemstore) throws IOException {
+  public long append(final HTableDescriptor htd, final HRegionInfo hri, final WALKey key, final WALEdit edits, final boolean inMemstore) throws IOException {
     if (this.closed) throw new IOException("Cannot append; log is closed");
     // Make a trace scope for the append.  It is closed on other side of the ring buffer by the
     // single consuming thread.  Don't have to worry about it.
@@ -1784,8 +1779,7 @@ public class FSHLog implements WAL {
 
     @Override
     // We can set endOfBatch in the below method if at end of our this.syncFutures array
-    public void onEvent(final RingBufferTruck truck, final long sequence, boolean endOfBatch)
-    throws Exception {
+    public void onEvent(final RingBufferTruck truck, final long sequence, boolean endOfBatch) throws Exception {
       // Appends and syncs are coming in order off the ringbuffer.  We depend on this fact.  We'll
       // add appends to dfsclient as they come in.  Batching appends doesn't give any significant
       // benefit on measurement.  Handler sync calls we will batch up. If we get an exception
@@ -1831,8 +1825,7 @@ public class FSHLog implements WAL {
           }
         } else {
           // What is this if not an append or sync. Fail all up to this!!!
-          cleanupOutstandingSyncsOnException(sequence,
-            new IllegalStateException("Neither append nor sync"));
+          cleanupOutstandingSyncsOnException(sequence, new IllegalStateException("Neither append nor sync"));
           // Return to keep processing.
           return;
         }
@@ -1856,8 +1849,7 @@ public class FSHLog implements WAL {
           try {
             // Below expects that the offer 'transfers' responsibility for the outstanding syncs to
             // the syncRunner. We should never get an exception in here.
-            this.syncRunners[this.syncRunnerIndex].offer(sequence, this.syncFutures,
-              this.syncFuturesCount);
+            this.syncRunners[this.syncRunnerIndex].offer(sequence, this.syncFutures, this.syncFuturesCount);
           } catch (Exception e) {
             // Should NEVER get here.
             requestLogRoll();
@@ -1942,8 +1934,7 @@ public class FSHLog implements WAL {
         }
 
         // Coprocessor hook.
-        if (!coprocessorHost.preWALWrite(entry.getHRegionInfo(), entry.getKey(),
-            entry.getEdit())) {
+        if (!coprocessorHost.preWALWrite(entry.getHRegionInfo(), entry.getKey(), entry.getEdit())) {
           if (entry.getEdit().isReplay()) {
             // Set replication scope null so that this won't be replicated
             entry.getKey().setScopes(null);
@@ -1952,16 +1943,14 @@ public class FSHLog implements WAL {
         if (!listeners.isEmpty()) {
           for (WALActionsListener i: listeners) {
             // TODO: Why does listener take a table description and CPs take a regioninfo?  Fix.
-            i.visitLogEntryBeforeWrite(entry.getHTableDescriptor(), entry.getKey(),
-              entry.getEdit());
+            i.visitLogEntryBeforeWrite(entry.getHTableDescriptor(), entry.getKey(), entry.getEdit());
           }
         }
 
         writer.append(entry);
         assert highestUnsyncedSequence < entry.getSequence();
         highestUnsyncedSequence = entry.getSequence();
-        sequenceIdAccounting.update(encodedRegionName, entry.getFamilyNames(), regionSequenceId,
-          entry.isInMemstore());
+        sequenceIdAccounting.update(encodedRegionName, entry.getFamilyNames(), regionSequenceId, entry.isInMemstore());
         coprocessorHost.postWALWrite(entry.getHRegionInfo(), entry.getKey(), entry.getEdit());
         // Update metrics.
         postAppend(entry, EnvironmentEdgeManager.currentTime() - start);

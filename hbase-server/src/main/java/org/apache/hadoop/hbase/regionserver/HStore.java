@@ -117,8 +117,7 @@ import com.google.common.collect.Sets;
 @InterfaceAudience.Private
 public class HStore implements Store {
   private static final String MEMSTORE_CLASS_NAME = "hbase.regionserver.memstore.class";
-  public static final String COMPACTCHECKER_INTERVAL_MULTIPLIER_KEY =
-      "hbase.server.compactchecker.interval.multiplier";
+  public static final String COMPACTCHECKER_INTERVAL_MULTIPLIER_KEY = "hbase.server.compactchecker.interval.multiplier";
   public static final String BLOCKING_STOREFILES_KEY = "hbase.hstore.blockingStoreFiles";
   public static final int DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER = 1000;
   public static final int DEFAULT_BLOCKING_STOREFILE_COUNT = 7;
@@ -200,8 +199,7 @@ public class HStore implements Store {
    * failed.  Can be null.
    * @throws IOException
    */
-  protected HStore(final HRegion region, final HColumnDescriptor family,
-      final Configuration confParam) throws IOException {
+  protected HStore(final HRegion region, final HColumnDescriptor family, final Configuration confParam) throws IOException {
 
     HRegionInfo info = region.getRegionInfo();
     this.fs = region.getRegionFileSystem();
@@ -220,19 +218,17 @@ public class HStore implements Store {
       .addWritableMap(family.getValues());
     this.blocksize = family.getBlocksize();
 
-    this.dataBlockEncoder =
-        new HFileDataBlockEncoderImpl(family.getDataBlockEncoding());
+    this.dataBlockEncoder = new HFileDataBlockEncoderImpl(family.getDataBlockEncoding());
 
     this.comparator = info.getComparator();
     // used by ScanQueryMatcher
-    long timeToPurgeDeletes =
-        Math.max(conf.getLong("hbase.hstore.time.to.purge.deletes", 0), 0);
-    LOG.trace("Time to purge deletes set to " + timeToPurgeDeletes +
-        "ms in store " + this);
+    long timeToPurgeDeletes = Math.max(conf.getLong("hbase.hstore.time.to.purge.deletes", 0), 0);
+    LOG.trace("Time to purge deletes set to " + timeToPurgeDeletes + "ms in store " + this);
+
     // Get TTL
     long ttl = determineTTLFromFamily(family);
-    // Why not just pass a HColumnDescriptor in here altogether?  Even if have
-    // to clone it?
+
+    // Why not just pass a HColumnDescriptor in here altogether?  Even if have to clone it?
     scanInfo = new ScanInfo(conf, family, ttl, timeToPurgeDeletes, this.comparator);
     String className = conf.get(MEMSTORE_CLASS_NAME, DefaultMemStore.class.getName());
     this.memstore = ReflectionUtils.instantiateWithCustomCtor(className, new Class[] {
@@ -244,19 +240,15 @@ public class HStore implements Store {
 
     this.verifyBulkLoads = conf.getBoolean("hbase.hstore.bulkload.verify", false);
 
-    this.blockingFileCount =
-        conf.getInt(BLOCKING_STOREFILES_KEY, DEFAULT_BLOCKING_STOREFILE_COUNT);
-    this.compactionCheckMultiplier = conf.getInt(
-        COMPACTCHECKER_INTERVAL_MULTIPLIER_KEY, DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER);
+    this.blockingFileCount = conf.getInt(BLOCKING_STOREFILES_KEY, DEFAULT_BLOCKING_STOREFILE_COUNT);
+    this.compactionCheckMultiplier = conf.getInt( COMPACTCHECKER_INTERVAL_MULTIPLIER_KEY, DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER);
     if (this.compactionCheckMultiplier <= 0) {
-      LOG.error("Compaction check period multiplier must be positive, setting default: "
-          + DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER);
+      LOG.error("Compaction check period multiplier must be positive, setting default: " + DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER);
       this.compactionCheckMultiplier = DEFAULT_COMPACTCHECKER_INTERVAL_MULTIPLIER;
     }
 
     if (HStore.closeCheckInterval == 0) {
-      HStore.closeCheckInterval = conf.getInt(
-          "hbase.hstore.close.check.interval", 10*1000*1000 /* 10 MB */);
+      HStore.closeCheckInterval = conf.getInt("hbase.hstore.close.check.interval", 10*1000*1000 /* 10 MB */);
     }
 
     this.storeEngine = StoreEngine.create(this, this.conf, this.comparator);
@@ -266,13 +258,10 @@ public class HStore implements Store {
     this.checksumType = getChecksumType(conf);
     // initilize bytes per checksum
     this.bytesPerChecksum = getBytesPerChecksum(conf);
-    flushRetriesNumber = conf.getInt(
-        "hbase.hstore.flush.retries.number", DEFAULT_FLUSH_RETRIES_NUMBER);
+    flushRetriesNumber = conf.getInt("hbase.hstore.flush.retries.number", DEFAULT_FLUSH_RETRIES_NUMBER);
     pauseTime = conf.getInt(HConstants.HBASE_SERVER_PAUSE, HConstants.DEFAULT_HBASE_SERVER_PAUSE);
     if (flushRetriesNumber <= 0) {
-      throw new IllegalArgumentException(
-          "hbase.hstore.flush.retries.number must be > 0, not "
-              + flushRetriesNumber);
+      throw new IllegalArgumentException("hbase.hstore.flush.retries.number must be > 0, not "+ flushRetriesNumber);
     }
 
     // Crypto context for new store files
@@ -283,8 +272,7 @@ public class HStore implements Store {
       byte[] keyBytes = family.getEncryptionKey();
       if (keyBytes != null) {
         // Family provides specific key material
-        String masterKeyName = conf.get(HConstants.CRYPTO_MASTERKEY_NAME_CONF_KEY,
-          User.getCurrent().getShortName());
+        String masterKeyName = conf.get(HConstants.CRYPTO_MASTERKEY_NAME_CONF_KEY, User.getCurrent().getShortName());
         try {
           // First try the master key
           key = EncryptionUtil.unwrapKey(conf, masterKeyName, keyBytes);
@@ -512,11 +500,9 @@ public class HStore implements Store {
       return new ArrayList<StoreFile>();
     }
     // initialize the thread pool for opening store files in parallel..
-    ThreadPoolExecutor storeFileOpenerThreadPool =
-      this.region.getStoreFileOpenAndCloseThreadPool("StoreFileOpenerThread-" +
-          this.getColumnFamilyName());
-    CompletionService<StoreFile> completionService =
-      new ExecutorCompletionService<StoreFile>(storeFileOpenerThreadPool);
+    // 初始化线程池，每个列族
+    ThreadPoolExecutor storeFileOpenerThreadPool = this.region.getStoreFileOpenAndCloseThreadPool("StoreFileOpenerThread-" +this.getColumnFamilyName());
+    CompletionService<StoreFile> completionService = new ExecutorCompletionService<StoreFile>(storeFileOpenerThreadPool);
 
     int totalValidStoreFile = 0;
     for (final StoreFileInfo storeFileInfo: files) {
@@ -531,6 +517,7 @@ public class HStore implements Store {
       totalValidStoreFile++;
     }
 
+    // 异步方式获取StoreFiles
     ArrayList<StoreFile> results = new ArrayList<StoreFile>(files.size());
     IOException ioe = null;
     try {
@@ -538,10 +525,10 @@ public class HStore implements Store {
         try {
           Future<StoreFile> future = completionService.take();
           StoreFile storeFile = future.get();
+
           long length = storeFile.getReader().length();
           this.storeSize += length;
-          this.totalUncompressedBytes +=
-              storeFile.getReader().getTotalUncompressedBytes();
+          this.totalUncompressedBytes += storeFile.getReader().getTotalUncompressedBytes();
           if (LOG.isDebugEnabled()) {
             LOG.debug("loaded " + storeFile.toStringDetailed());
           }
@@ -557,8 +544,7 @@ public class HStore implements Store {
     }
     if (ioe != null) {
       // close StoreFile readers
-      boolean evictOnClose = 
-          cacheConf != null? cacheConf.shouldEvictOnClose(): true; 
+      boolean evictOnClose =  cacheConf != null? cacheConf.shouldEvictOnClose(): true;
       for (StoreFile file : results) {
         try {
           if (file != null) file.closeReader(evictOnClose);
@@ -655,8 +641,7 @@ public class HStore implements Store {
   private StoreFile createStoreFileAndReader(final StoreFileInfo info)
       throws IOException {
     info.setRegionCoprocessorHost(this.region.getCoprocessorHost());
-    StoreFile storeFile = new StoreFile(this.getFileSystem(), info, this.conf, this.cacheConf,
-      this.family.getBloomFilterType());
+    StoreFile storeFile = new StoreFile(this.getFileSystem(), info, this.conf, this.cacheConf, this.family.getBloomFilterType());
     StoreFile.Reader r = storeFile.createReader();
     r.setReplicaStoreFile(isPrimaryReplicaStore());
     return storeFile;
@@ -2073,9 +2058,17 @@ public class HStore implements Store {
   // File administration
   //////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * 获得scanner扫描器
+   *
+   * @param scan Scan to apply when scanning the stores
+   * @param targetCols columns to scan
+   * @param readPt
+   * @return
+   * @throws IOException
+   */
   @Override
-  public KeyValueScanner getScanner(Scan scan,
-      final NavigableSet<byte []> targetCols, long readPt) throws IOException {
+  public KeyValueScanner getScanner(Scan scan, final NavigableSet<byte []> targetCols, long readPt) throws IOException {
     lock.readLock().lock();
     try {
       KeyValueScanner scanner = null;

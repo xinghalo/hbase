@@ -680,8 +680,7 @@ public class HFileBlockIndex {
      * @param numEntries the number of root-level index entries
      * @throws IOException
      */
-    public void readMultiLevelIndexRoot(HFileBlock blk,
-        final int numEntries) throws IOException {
+    public void readMultiLevelIndexRoot(HFileBlock blk, final int numEntries) throws IOException {
       DataInputStream in = readRootIndex(blk, numEntries);
       // after reading the root index the checksum bytes have to
       // be subtracted to know if the mid key exists.

@@ -593,8 +593,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
 
       // 使用线程池管理readers
       readers = new Reader[readThreads];
-      readPool = Executors.newFixedThreadPool(readThreads,
-        new ThreadFactoryBuilder().setNameFormat(
+      readPool = Executors.newFixedThreadPool(readThreads, new ThreadFactoryBuilder().setNameFormat(
           "RpcServer.reader=%d,bindAddress=" + bindAddress.getHostName() +
           ",port=" + port).setDaemon(true).build());
       for (int i = 0; i < readThreads; ++i) {
@@ -759,6 +758,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
             try {
               if (key.isValid()) {
                 if (key.isAcceptable())
+                  // NIO 接收请求
                   doAccept(key);
               }
             } catch (IOException ignored) {
@@ -832,6 +832,13 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       return address;
     }
 
+    /**
+     * Listioner中的监听器
+     *
+     * @param key
+     * @throws IOException
+     * @throws OutOfMemoryError
+     */
     void doAccept(SelectionKey key) throws IOException, OutOfMemoryError {
       Connection c;
       ServerSocketChannel server = (ServerSocketChannel) key.channel();
@@ -923,8 +930,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
   // Sends responses of RPC back to clients.
   protected class Responder extends Thread {
     private final Selector writeSelector;
-    private final Set<Connection> writingCons =
-        Collections.newSetFromMap(new ConcurrentHashMap<Connection, Boolean>());
+    private final Set<Connection> writingCons = Collections.newSetFromMap(new ConcurrentHashMap<Connection, Boolean>());
 
     Responder() throws IOException {
       this.setName("RpcServer.responder");
@@ -1205,9 +1211,11 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
     // If the connection header has been read or not.
     private boolean connectionHeaderRead = false;
     protected SocketChannel channel;
+
     private ByteBuffer data;
     private ByteBuffer dataLengthBuffer;
     private ByteBuffer preambleBuffer;
+
     protected final ConcurrentLinkedDeque<Call> responseQueue = new ConcurrentLinkedDeque<Call>();
     private final Lock responseWriteLock = new ReentrantLock();
     private Counter rpcCount = new Counter(); // number of outstanding rpcs
@@ -1240,14 +1248,11 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
     private boolean useWrap = false;
     // Fake 'call' for failed authorization response
     private static final int AUTHORIZATION_FAILED_CALLID = -1;
-    private final Call authFailedCall = new Call(AUTHORIZATION_FAILED_CALLID, null, null, null,
-        null, null, this, null, 0, null, null);
-    private ByteArrayOutputStream authFailedResponse =
-        new ByteArrayOutputStream();
+    private final Call authFailedCall = new Call(AUTHORIZATION_FAILED_CALLID, null, null, null,null, null, this, null, 0, null, null);
+    private ByteArrayOutputStream authFailedResponse = new ByteArrayOutputStream();
     // Fake 'call' for SASL context setup
     private static final int SASL_CALLID = -33;
-    private final Call saslCall = new Call(SASL_CALLID, null, null, null, null, null, this, null,
-        0, null, null);
+    private final Call saslCall = new Call(SASL_CALLID, null, null, null, null, null, this, null, 0, null, null);
 
     // was authentication allowed with a fallback to simple auth
     private boolean authenticatedWithFallback;
@@ -1275,8 +1280,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
         try {
           socket.setSendBufferSize(socketSendBufferSize);
         } catch (IOException e) {
-          LOG.warn("Connection: unable to set socket send buffer size to " +
-                   socketSendBufferSize);
+          LOG.warn("Connection: unable to set socket send buffer size to " + socketSendBufferSize);
         }
       }
     }
@@ -1328,8 +1332,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       return isIdle() && currentTime - lastContact > maxIdleTime;
     }
 
-    private UserGroupInformation getAuthorizedUgi(String authorizedId)
-        throws IOException {
+    private UserGroupInformation getAuthorizedUgi(String authorizedId) throws IOException {
       UserGroupInformation authorizedUgi;
       if (authMethod == AuthMethod.DIGEST) {
         TokenIdentifier tokenId = HBaseSaslRpcServer.getIdentifier(authorizedId,
@@ -1455,8 +1458,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
     /**
      * No protobuf encoding of raw sasl messages
      */
-    private void doRawSaslReply(SaslStatus status, Writable rv,
-        String errorClass, String error) throws IOException {
+    private void doRawSaslReply(SaslStatus status, Writable rv, String errorClass, String error) throws IOException {
       ByteBufferOutputStream saslResponse = null;
       DataOutputStream out = null;
       try {
@@ -1680,6 +1682,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
 
     // Reads the connection header following version
     private void processConnectionHeader(byte[] buf) throws IOException {
+      // 获取connectionHeader，构建对应的处理service
       this.connectionHeader = ConnectionHeader.parseFrom(buf);
       String serviceName = connectionHeader.getServiceName();
       if (serviceName == null) throw new EmptyServiceNameException();
@@ -1830,20 +1833,21 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       CodedInputStream cis = CodedInputStream.newInstance(buf, offset, buf.length);
       int headerSize = cis.readRawVarint32();
       offset = cis.getTotalBytesRead();
+
+      // 序列化创建RequestHeader
       Message.Builder builder = RequestHeader.newBuilder();
       ProtobufUtil.mergeFrom(builder, buf, offset, headerSize);
       RequestHeader header = (RequestHeader) builder.build();
+
       offset += headerSize;
       int id = header.getCallId();
       if (LOG.isTraceEnabled()) {
-        LOG.trace("RequestHeader " + TextFormat.shortDebugString(header) +
-          " totalRequestSize: " + totalRequestSize + " bytes");
+        LOG.trace("RequestHeader " + TextFormat.shortDebugString(header) + " totalRequestSize: " + totalRequestSize + " bytes");
       }
       // Enforcing the call queue size, this triggers a retry in the client
       // This is a bit late to be doing this check - we have already read in the total request.
       if ((totalRequestSize + callQueueSize.get()) > maxQueueSize) {
-        final Call callTooBig =
-          new Call(id, this.service, null, null, null, null, this,
+        final Call callTooBig = new Call(id, this.service, null, null, null, null, this,
             responder, totalRequestSize, null, null);
         ByteArrayOutputStream responseBuffer = new ByteArrayOutputStream();
         metrics.exception(CALL_QUEUE_TOO_BIG_EXCEPTION);
@@ -1853,6 +1857,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
         responder.doRespond(callTooBig);
         return;
       }
+
       MethodDescriptor md = null;
       Message param = null;
       CellScanner cellScanner = null;
@@ -1872,8 +1877,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
           offset += paramSize;
         }
         if (header.hasCellBlockMeta()) {
-          cellScanner = ipcUtil.createCellScanner(this.codec, this.compressionCodec,
-            buf, offset, buf.length);
+          cellScanner = ipcUtil.createCellScanner(this.codec, this.compressionCodec, buf, offset, buf.length);
         }
       } catch (Throwable t) {
         InetSocketAddress address = getListenerAddress();
@@ -1902,12 +1906,12 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
         return;
       }
 
-      TraceInfo traceInfo = header.hasTraceInfo()
-          ? new TraceInfo(header.getTraceInfo().getTraceId(), header.getTraceInfo().getParentId())
-          : null;
-      Call call = new Call(id, this.service, md, header, param, cellScanner, this, responder,
-              totalRequestSize, traceInfo, this.addr);
+      TraceInfo traceInfo = header.hasTraceInfo()? new TraceInfo(header.getTraceInfo().getTraceId(), header.getTraceInfo().getParentId()): null;
 
+      // 创建Call
+      Call call = new Call(id, this.service, md, header, param, cellScanner, this, responder, totalRequestSize, traceInfo, this.addr);
+
+      // 交由scheduler调度执行
       if (!scheduler.dispatch(new CallRunner(RpcServer.this, call))) {
         callQueueSize.add(-1 * call.getSize());
 
@@ -2029,8 +2033,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
    * @param conf
    * @param scheduler
    */
-  public RpcServer(final Server server, final String name,
-      final List<BlockingServiceAndInterface> services,
+  public RpcServer(final Server server, final String name, final List<BlockingServiceAndInterface> services,
       final InetSocketAddress bindAddress, Configuration conf, RpcScheduler scheduler)
       throws IOException {
 
@@ -2152,7 +2155,10 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
   /** Starts the service.  Must be called before any calls will be handled. */
   @Override
   public synchronized void start() {
-    if (started) return;
+    if (started) {
+      return;
+    }
+
     authTokenSecretMgr = createSecretManager();
     if (authTokenSecretMgr != null) {
       setSecretManager(authTokenSecretMgr);
@@ -2160,9 +2166,12 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
     }
     this.authManager = new ServiceAuthorizationManager();
     HBasePolicyProvider.init(conf, authManager);
+
+    // 线程启动
     responder.start();
     listener.start();
     scheduler.start();
+
     started = true;
   }
 
@@ -2208,10 +2217,14 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
       // TODO: Review after we add in encoded data blocks.
       status.setRPCPacket(param);
       status.resume("Servicing call");
+
       //get an instance of the method arg type
       long startTime = System.currentTimeMillis();
+
       PayloadCarryingRpcController controller = new PayloadCarryingRpcController(cellScanner);
+      // 执行阻塞方法
       Message result = service.callBlockingMethod(md, controller, param);
+
       long endTime = System.currentTimeMillis();
       int processingTime = (int) (endTime - startTime);
       int qTime = (int) (startTime - receiveTime);
@@ -2568,11 +2581,8 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
    * @param services Available services and their service interfaces.
    * @return BlockingService that goes with the passed <code>serviceName</code>
    */
-  static BlockingService getService(
-      final List<BlockingServiceAndInterface> services,
-      final String serviceName) {
-    BlockingServiceAndInterface bsasi =
-        getServiceAndInterface(services, serviceName);
+  static BlockingService getService(final List<BlockingServiceAndInterface> services, final String serviceName) {
+    BlockingServiceAndInterface bsasi = getServiceAndInterface(services, serviceName);
     return bsasi == null? null: bsasi.getBlockingService();
   }
 

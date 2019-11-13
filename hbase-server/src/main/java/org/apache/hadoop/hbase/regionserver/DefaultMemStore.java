@@ -114,8 +114,7 @@ public class DefaultMemStore implements MemStore {
    * Constructor.
    * @param c Comparator
    */
-  public DefaultMemStore(final Configuration conf,
-                  final KeyValue.KVComparator c) {
+  public DefaultMemStore(final Configuration conf, final KeyValue.KVComparator c) {
     this.conf = conf;
     this.comparator = c;
     this.cellSet = new CellSkipListSet(c);

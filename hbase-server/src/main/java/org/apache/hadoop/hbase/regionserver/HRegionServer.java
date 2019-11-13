@@ -524,6 +524,7 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
 
     // 创建rpc服务，提供客户端的连接
     rpcServices = createRpcServices();
+
     this.startcode = System.currentTimeMillis();
     if (this instanceof HMaster) {
       useThisHostnameInstead = conf.get(MASTER_HOSTNAME_KEY);
@@ -579,7 +580,9 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     }
     this.configurationManager = new ConfigurationManager();
 
+    // 启动rpc服务
     rpcServices.start();
+
     putUpWebUI();
     this.walRoller = new LogRoller(this, this);
     this.choreService = new ChoreService(getServerName().toString(), true);
@@ -1387,6 +1390,8 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
       ZNodeClearer.writeMyEphemeralNodeOnDisk(getMyEphemeralNodePath());
 
       this.cacheConfig = new CacheConfig(conf);
+
+      //wal 创建工厂
       this.walFactory = setupWALAndReplication();
       // Init in here rather than in constructor after thread name has been set
       this.metricsRegionServer = new MetricsRegionServer(new MetricsRegionServerWrapperImpl(this));
@@ -1856,13 +1861,19 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
 
   private static final byte[] UNSPECIFIED_REGION = new byte[]{};
 
+  /**
+   * 根据regioninfo获取wal
+   *
+   * @param regionInfo
+   * @return
+   * @throws IOException
+   */
   @Override
   public WAL getWAL(HRegionInfo regionInfo) throws IOException {
     WAL wal;
     LogRoller roller = walRoller;
     //_ROOT_ and hbase:meta regions have separate WAL.
-    if (regionInfo != null && regionInfo.isMetaTable() &&
-        regionInfo.getReplicaId() == HRegionInfo.DEFAULT_REPLICA_ID) {
+    if (regionInfo != null && regionInfo.isMetaTable() && regionInfo.getReplicaId() == HRegionInfo.DEFAULT_REPLICA_ID) {
       roller = ensureMetaWALRoller();
       wal = walFactory.getMetaWAL(regionInfo.getEncodedNameAsBytes());
     } else if (regionInfo == null) {

@@ -44,8 +44,7 @@ import org.apache.hadoop.hbase.regionserver.ScannerContext.NextState;
  * as an InternalScanner at the Store level, you will get runtime exceptions.
  */
 @InterfaceAudience.Private
-public class KeyValueHeap extends NonReversedNonLazyKeyValueScanner
-    implements KeyValueScanner, InternalScanner {
+public class KeyValueHeap extends NonReversedNonLazyKeyValueScanner implements KeyValueScanner, InternalScanner {
   private static final Log LOG = LogFactory.getLog(KeyValueHeap.class);
   protected PriorityQueue<KeyValueScanner> heap = null;
 
@@ -69,8 +68,7 @@ public class KeyValueHeap extends NonReversedNonLazyKeyValueScanner
    * @param scanners
    * @param comparator
    */
-  public KeyValueHeap(List<? extends KeyValueScanner> scanners,
-      KVComparator comparator) throws IOException {
+  public KeyValueHeap(List<? extends KeyValueScanner> scanners, KVComparator comparator) throws IOException {
     this(scanners, new KVScannerComparator(comparator));
   }
 
@@ -80,12 +78,10 @@ public class KeyValueHeap extends NonReversedNonLazyKeyValueScanner
    * @param comparator
    * @throws IOException
    */
-  KeyValueHeap(List<? extends KeyValueScanner> scanners,
-      KVScannerComparator comparator) throws IOException {
+  KeyValueHeap(List<? extends KeyValueScanner> scanners, KVScannerComparator comparator) throws IOException {
     this.comparator = comparator;
     if (!scanners.isEmpty()) {
-      this.heap = new PriorityQueue<KeyValueScanner>(scanners.size(),
-          this.comparator);
+      this.heap = new PriorityQueue<KeyValueScanner>(scanners.size(), this.comparator);
       for (KeyValueScanner scanner : scanners) {
         if (scanner.peek() != null) {
           this.heap.add(scanner);

@@ -541,12 +541,10 @@ public class HFile {
    * @return an active Reader instance
    * @throws IOException Will throw a CorruptHFileException (DoNotRetryIOException subtype) if hfile is corrupt/invalid.
    */
-  public static Reader createReader(
-      FileSystem fs, Path path, CacheConfig cacheConf, Configuration conf) throws IOException {
+  public static Reader createReader(FileSystem fs, Path path, CacheConfig cacheConf, Configuration conf) throws IOException {
     Preconditions.checkNotNull(cacheConf, "Cannot create Reader with null CacheConf");
     FSDataInputStreamWrapper stream = new FSDataInputStreamWrapper(fs, path);
-    return openReader(path, stream, fs.getFileStatus(path).getLen(),
-      cacheConf, stream.getHfs(), conf);
+    return openReader(path, stream, fs.getFileStatus(path).getLen(),cacheConf, stream.getHfs(), conf);
   }
 
   /**

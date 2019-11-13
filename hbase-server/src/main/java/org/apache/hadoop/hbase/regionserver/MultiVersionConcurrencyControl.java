@@ -35,6 +35,8 @@ import org.apache.hadoop.hbase.util.ClassSize;
  * Manages the read/write consistency. This provides an interface for readers to determine what
  * entries to ignore, and a mechanism for writers to obtain new write numbers, then "commit"
  * the new writes for readers to read (thus forming atomic transactions).
+ *
+ * 管理并发读写，提供读者哪些entries可以忽略，获得唯一的标识id
  */
 @InterfaceAudience.Private
 public class MultiVersionConcurrencyControl {
@@ -43,6 +45,7 @@ public class MultiVersionConcurrencyControl {
 
   final AtomicLong readPoint = new AtomicLong(0);
   final AtomicLong writePoint = new AtomicLong(0);
+
   private final Object readWaiters = new Object();
   /**
    * Represents no value, or not set.
@@ -63,6 +66,8 @@ public class MultiVersionConcurrencyControl {
 
   /**
    * Construct and set read point. Write point is uninitialized.
+   *
+   * 配置读取标记位
    */
   public MultiVersionConcurrencyControl(long startPoint) {
     tryAdvanceTo(startPoint, NONE);
@@ -82,6 +87,7 @@ public class MultiVersionConcurrencyControl {
 
   /**
    * Step the MVCC forward on to a new read/write basis.
+   *
    * @param newStartPoint Point to move read and write points to.
    * @param expected If not -1 (#NONE)
    * @return Returns false if <code>expected</code> is not equal to the
@@ -229,6 +235,7 @@ public class MultiVersionConcurrencyControl {
     }
   }
 
+  @Override
   @VisibleForTesting
   public String toString() {
     return Objects.toStringHelper(this)

@@ -53,6 +53,11 @@ import org.apache.hadoop.hbase.regionserver.wal.WALActionsListener;
  * </ul>
  * It also uses the providerId to diffentiate among files.
  *
+ * 通过下面的内容进行命名：
+ * 1 HBase根目录
+ * 2 HREGION_LOGDIR_NAME = "WALs"
+ * 3 regionserver = "host:port"
+ *
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -85,8 +90,7 @@ public class DefaultWALProvider implements WALProvider {
    *                   null
    */
   @Override
-  public void init(final WALFactory factory, final Configuration conf,
-      final List<WALActionsListener> listeners, String providerId) throws IOException {
+  public void init(final WALFactory factory, final Configuration conf, final List<WALActionsListener> listeners, String providerId) throws IOException {
     if (null != log) {
       throw new IllegalStateException("WALProvider.init should only be called once.");
     }

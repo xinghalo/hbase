@@ -160,8 +160,7 @@ public class WALCoprocessorHost
    * @param logEdit
    * @throws IOException
    */
-  public void postWALWrite(final HRegionInfo info, final WALKey logKey, final WALEdit logEdit)
-      throws IOException {
+  public void postWALWrite(final HRegionInfo info, final WALKey logKey, final WALEdit logEdit) throws IOException {
     if (this.coprocessors == null || this.coprocessors.isEmpty()) return;
     ObserverContext<WALCoprocessorEnvironment> ctx = null;
     List<WALEnvironment> envs = coprocessors.get();
@@ -178,8 +177,7 @@ public class WALCoprocessorHost
             if (logKey instanceof HLogKey) {
               observer.postWALWrite(ctx, info, (HLogKey)logKey, logEdit);
             } else {
-              legacyWarning(observer.getClass(),
-                  "There are wal keys present that are not HLogKey.");
+              legacyWarning(observer.getClass(),"There are wal keys present that are not HLogKey.");
             }
           } else {
             observer.postWALWrite(ctx, info, logKey, logEdit);

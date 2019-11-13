@@ -118,9 +118,7 @@ public interface WAL extends Closeable {
    * @return Returns a 'transaction id' and <code>key</code> will have the region edit/sequence id
    * in it.
    */
-  long append(HTableDescriptor htd, HRegionInfo info, WALKey key, WALEdit edits,
-    boolean inMemstore)
-  throws IOException;
+  long append(HTableDescriptor htd, HRegionInfo info, WALKey key, WALEdit edits, boolean inMemstore) throws IOException;
 
   /**
    * Sync what we have in the WAL.

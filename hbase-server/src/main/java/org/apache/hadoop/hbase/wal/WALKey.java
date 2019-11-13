@@ -94,6 +94,7 @@ public class WALKey implements SequenceId, Comparable<WALKey> {
    */
   @InterfaceAudience.Private // For internal use only.
   public MultiVersionConcurrencyControl.WriteEntry getWriteEntry() throws InterruptedIOException {
+    // 使用countdownlatch，如果没有就阻塞等待
     try {
       this.seqNumAssignedLatch.await();
     } catch (InterruptedException ie) {

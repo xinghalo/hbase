@@ -172,8 +172,7 @@ public class LogRoller extends HasThread {
           final WAL wal = entry.getKey();
           // Force the roll if the logroll.period is elapsed or if a roll was requested.
           // The returned value is an array of actual region names.
-          final byte [][] regionsToFlush = wal.rollWriter(periodic ||
-              entry.getValue().booleanValue());
+          final byte [][] regionsToFlush = wal.rollWriter(periodic || entry.getValue().booleanValue());
           walNeedsRoll.put(wal, Boolean.FALSE);
           if (regionsToFlush != null) {
             for (byte [] r: regionsToFlush) scheduleFlush(r);

@@ -123,6 +123,11 @@ public class FixedFileTrailer {
     HFile.checkFormatVersion(majorVersion);
   }
 
+  /**
+   * 计算每个版本下trailer的长度
+   *
+   * @return v2: 212 v3: 1024*4
+   */
   private static int[] computeTrailerSizeByVersion() {
     int versionToSize[] = new int[HFile.MAX_FORMAT_VERSION + 1];
     // We support only 2 major versions now. ie. V2, V3
@@ -365,18 +370,14 @@ public class FixedFileTrailer {
   /**
    * Reads a file trailer from the given file.
    *
-   * @param istream the input stream with the ability to seek. Does not have to
-   *          be buffered, as only one read operation is made.
-   * @param fileSize the file size. Can be obtained using
-   *          {@link org.apache.hadoop.fs.FileSystem#getFileStatus(
-   *          org.apache.hadoop.fs.Path)}.
+   * @param istream the input stream with the ability to seek. Does not have to be buffered, as only one read operation is made.
+   * @param fileSize the file size. Can be obtained using {@link org.apache.hadoop.fs.FileSystem#getFileStatus(org.apache.hadoop.fs.Path)}.
    * @return the fixed file trailer read
    * @throws IOException if failed to read from the underlying stream, or the
    *           trailer is corrupted, or the version of the trailer is
    *           unsupported
    */
-  public static FixedFileTrailer readFromStream(FSDataInputStream istream,
-      long fileSize) throws IOException {
+  public static FixedFileTrailer readFromStream(FSDataInputStream istream, long fileSize) throws IOException {
     int bufferSize = MAX_TRAILER_SIZE;
     long seekPoint = fileSize - bufferSize;
     if (seekPoint < 0) {
@@ -388,8 +389,7 @@ public class FixedFileTrailer {
     HFileUtil.seekOnMultipleSources(istream, seekPoint);
 
     ByteBuffer buf = ByteBuffer.allocate(bufferSize);
-    istream.readFully(buf.array(), buf.arrayOffset(),
-        buf.arrayOffset() + buf.limit());
+    istream.readFully(buf.array(), buf.arrayOffset(),buf.arrayOffset() + buf.limit());
 
     // Read the version from the last int of the file.
     buf.position(buf.limit() - Bytes.SIZEOF_INT);
@@ -399,13 +399,13 @@ public class FixedFileTrailer {
     int majorVersion = extractMajorVersion(version);
     int minorVersion = extractMinorVersion(version);
 
-    HFile.checkFormatVersion(majorVersion); // throws IAE if invalid
+    // throws IAE if invalid
+    HFile.checkFormatVersion(majorVersion);
 
     int trailerSize = getTrailerSize(majorVersion);
 
     FixedFileTrailer fft = new FixedFileTrailer(majorVersion, minorVersion);
-    fft.deserialize(new DataInputStream(new ByteArrayInputStream(buf.array(),
-        buf.arrayOffset() + bufferSize - trailerSize, trailerSize)));
+    fft.deserialize(new DataInputStream(new ByteArrayInputStream(buf.array(),buf.arrayOffset() + bufferSize - trailerSize, trailerSize)));
     return fft;
   }
 

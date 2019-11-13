@@ -37,8 +37,7 @@ import org.apache.hadoop.hbase.io.hfile.HFile.FileInfo;
  * Common functionality needed by all versions of {@link HFile} readers.
  */
 @InterfaceAudience.Private
-public abstract class AbstractHFileReader
-    implements HFile.Reader, Configurable {
+public abstract class AbstractHFileReader implements HFile.Reader, Configurable {
   /** Stream to read from. Does checksum verifications in file system */
 
   /** The file system stream of the underlying {@link HFile} that
@@ -61,8 +60,7 @@ public abstract class AbstractHFileReader
    * What kind of data block encoding should be used while reading, writing,
    * and handling cache.
    */
-  protected HFileDataBlockEncoder dataBlockEncoder =
-      NoOpDataBlockEncoder.INSTANCE;
+  protected HFileDataBlockEncoder dataBlockEncoder = NoOpDataBlockEncoder.INSTANCE;
 
   /** Last key in the file. Filled in when we read in the file info */
   protected byte [] lastKey = null;

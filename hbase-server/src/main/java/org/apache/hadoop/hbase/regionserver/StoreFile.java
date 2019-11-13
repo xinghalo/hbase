@@ -89,20 +89,16 @@ public class StoreFile {
   public static final byte [] MAX_SEQ_ID_KEY = Bytes.toBytes("MAX_SEQ_ID_KEY");
 
   /** Major compaction flag in FileInfo */
-  public static final byte[] MAJOR_COMPACTION_KEY =
-      Bytes.toBytes("MAJOR_COMPACTION_KEY");
+  public static final byte[] MAJOR_COMPACTION_KEY = Bytes.toBytes("MAJOR_COMPACTION_KEY");
 
   /** Minor compaction flag in FileInfo */
-  public static final byte[] EXCLUDE_FROM_MINOR_COMPACTION_KEY =
-      Bytes.toBytes("EXCLUDE_FROM_MINOR_COMPACTION");
+  public static final byte[] EXCLUDE_FROM_MINOR_COMPACTION_KEY = Bytes.toBytes("EXCLUDE_FROM_MINOR_COMPACTION");
 
   /** Bloom filter Type in FileInfo */
-  public static final byte[] BLOOM_FILTER_TYPE_KEY =
-      Bytes.toBytes("BLOOM_FILTER_TYPE");
+  public static final byte[] BLOOM_FILTER_TYPE_KEY = Bytes.toBytes("BLOOM_FILTER_TYPE");
 
   /** Delete Family Count in FileInfo */
-  public static final byte[] DELETE_FAMILY_COUNT =
-      Bytes.toBytes("DELETE_FAMILY_COUNT");
+  public static final byte[] DELETE_FAMILY_COUNT = Bytes.toBytes("DELETE_FAMILY_COUNT");
 
   /** Last Bloom filter key in FileInfo */
   private static final byte[] LAST_BLOOM_KEY = Bytes.toBytes("LAST_BLOOM_KEY");
@@ -116,18 +112,24 @@ public class StoreFile {
   private final StoreFileInfo fileInfo;
   private final FileSystem fs;
 
-  // Block cache configuration and reference.
+  /**
+   * Block cache configuration and reference.
+   */
   private final CacheConfig cacheConf;
 
-  // Keys for metadata stored in backing HFile.
-  // Set when we obtain a Reader.
+  /**
+   * Keys for metadata stored in backing HFile. Set when we obtain a Reader.
+   */
   private long sequenceid = -1;
 
-  // max of the MemstoreTS in the KV's in this store
-  // Set when we obtain a Reader.
+  /**
+   * max of the MemstoreTS in the KV's in this store. Set when we obtain a Reader.
+   */
   private long maxMemstoreTS = -1;
 
-  // firstKey, lastkey and cellComparator will be set when openReader.
+  /**
+   * firstKey, lastkey and cellComparator will be set when openReader.
+   */
   private byte[] firstKey;
 
   private byte[] lastKey;
@@ -158,26 +160,28 @@ public class StoreFile {
     this.maxMemstoreTS = maxMemstoreTS;
   }
 
-  // If true, this file was product of a major compaction.  Its then set
-  // whenever you get a Reader.
+  /**
+   * If true, this file was product of a major compaction.  Its then set whenever you get a Reader.
+   */
   private AtomicBoolean majorCompaction = null;
 
-  // If true, this file should not be included in minor compactions.
-  // It's set whenever you get a Reader.
+  /**
+   * If true, this file should not be included in minor compactions. It's set whenever you get a Reader.
+   */
   private boolean excludeFromMinorCompaction = false;
 
   /** Meta key set when store file is a result of a bulk load */
-  public static final byte[] BULKLOAD_TASK_KEY =
-    Bytes.toBytes("BULKLOAD_SOURCE_TASK");
-  public static final byte[] BULKLOAD_TIME_KEY =
-    Bytes.toBytes("BULKLOAD_TIMESTAMP");
+  public static final byte[] BULKLOAD_TASK_KEY = Bytes.toBytes("BULKLOAD_SOURCE_TASK");
+  public static final byte[] BULKLOAD_TIME_KEY = Bytes.toBytes("BULKLOAD_TIMESTAMP");
 
   /**
    * Map of the metadata entries in the corresponding HFile
    */
   private Map<byte[], byte[]> metadataMap;
 
-  // StoreFile.Reader
+  /**
+   * StoreFile.Reader
+   */
   private volatile Reader reader;
 
   /**
@@ -231,8 +235,7 @@ public class StoreFile {
     if (BloomFilterFactory.isGeneralBloomEnabled(conf)) {
       this.cfBloomType = cfBloomType;
     } else {
-      LOG.info("Ignoring bloom filter check for file " + this.getPath() + ": " +
-          "cfBloomType=" + cfBloomType + " (disabled in config)");
+      LOG.info("Ignoring bloom filter check for file " + this.getPath() + ": " + "cfBloomType=" + cfBloomType + " (disabled in config)");
       this.cfBloomType = BloomType.NONE;
     }
   }
@@ -386,6 +389,7 @@ public class StoreFile {
 
   /**
    * Opens reader on this store file.  Called by Constructor.
+   *
    * @return Reader for the store file.
    * @throws IOException
    * @see #closeReader(boolean)
@@ -396,9 +400,11 @@ public class StoreFile {
     }
 
     // Open the StoreFile.Reader
+    // 开启Reader，{@link HFileReaderV3}
     this.reader = fileInfo.open(this.fs, this.cacheConf, canUseDropBehind);
 
     // Load up indices and fileinfo. This also loads Bloom filter type.
+    // metadata map 存储 fileinfo
     metadataMap = Collections.unmodifiableMap(this.reader.loadFileInfo());
 
     // Read in our metadata.
@@ -504,8 +510,7 @@ public class StoreFile {
         this.reader = open(canUseDropBehind);
       } catch (IOException e) {
         try {
-          boolean evictOnClose =
-              cacheConf != null? cacheConf.shouldEvictOnClose(): true; 
+          boolean evictOnClose = cacheConf != null? cacheConf.shouldEvictOnClose(): true;
           this.closeReader(evictOnClose);
         } catch (IOException ee) {
         }
@@ -1075,8 +1080,7 @@ public class StoreFile {
     private long deleteFamilyCnt = -1;
     private boolean bulkLoadResult = false;
 
-    public Reader(FileSystem fs, Path path, CacheConfig cacheConf, Configuration conf)
-        throws IOException {
+    public Reader(FileSystem fs, Path path, CacheConfig cacheConf, Configuration conf) throws IOException {
       reader = HFile.createReader(fs, path, cacheConf, conf);
       bloomFilterType = BloomType.NONE;
     }
