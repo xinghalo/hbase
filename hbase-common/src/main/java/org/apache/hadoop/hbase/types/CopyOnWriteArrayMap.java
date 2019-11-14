@@ -346,6 +346,9 @@ public class CopyOnWriteArrayMap<K, V> extends AbstractMap<K, V> implements Map<
   @Override
   public synchronized V putIfAbsent(K key, V value) {
     ArrayHolder<K, V> current = this.holder;
+
+    // 返回正的index说明找到了
+    // 返回负的index说明没找到
     int index = current.find(key);
 
     if (index < 0) {
@@ -353,6 +356,7 @@ public class CopyOnWriteArrayMap<K, V> extends AbstractMap<K, V> implements Map<
       this.holder = current.insert(-(index + 1), newEntry);
       return value;
     }
+
     return current.entries[index].getValue();
   }
 
@@ -876,10 +880,11 @@ public class CopyOnWriteArrayMap<K, V> extends AbstractMap<K, V> implements Map<
 
     /**
      * Binary search for a given key
+     *
      * @param needle The key to look for in all of the entries
      * @return Same return value as Arrays.binarySearch.
-     * Positive numbers mean the index.
-     * Otherwise (-1 * insertion point) - 1
+     *
+     * Positive numbers mean the index. Otherwise (-1 * insertion point) - 1
      */
     int find(K needle) {
       int begin = startIndex;

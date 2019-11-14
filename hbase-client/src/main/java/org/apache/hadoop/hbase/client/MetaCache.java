@@ -50,6 +50,9 @@ public class MetaCache {
 
   /**
    * Map of table to table {@link HRegionLocation}s.
+   *
+   * CopyOnWriteArrayMap<tablename, CopyOnWriteArrayMap<startkey, regionLocations>>
+   *
    * 使用concurrentMap保存 --> tablename, map<key, locations>
    */
   private final ConcurrentMap<TableName, ConcurrentNavigableMap<byte[], RegionLocations>> cachedRegionLocations = new CopyOnWriteArrayMap<>();
@@ -74,7 +77,9 @@ public class MetaCache {
    * @return Null or region location found in cache.
    */
   public RegionLocations getCachedLocation(final TableName tableName, final byte [] row) {
-    // TODO ConcurrentNavigableMap的作用，它内部是怎么实现查询匹配的
+    // ConcurrentNavigableMap的作用，它内部是怎么实现查询匹配的
+    // 内部使用copy on write array map，基于table名称做为key，regionlocations作为value
+    // regionlocations通过startkey形成数组，方便查找
     ConcurrentNavigableMap<byte[], RegionLocations> tableLocations = getTableLocations(tableName);
 
     Entry<byte[], RegionLocations> e = tableLocations.floorEntry(row);
@@ -115,8 +120,7 @@ public class MetaCache {
    * @param source the source of the new location
    * @param location the new location
    */
-  public void cacheLocation(final TableName tableName, final ServerName source,
-      final HRegionLocation location) {
+  public void cacheLocation(final TableName tableName, final ServerName source, final HRegionLocation location) {
     assert source != null;
     byte [] startKey = location.getRegionInfo().getStartKey();
     ConcurrentMap<byte[], RegionLocations> tableLocations = getTableLocations(tableName);
@@ -159,12 +163,18 @@ public class MetaCache {
    */
   public void cacheLocation(final TableName tableName, final RegionLocations locations) {
     // 获得对应的startkey
+    // 默认情况下如果没有副本，这里返回的是第一个regionLocation中的loc
     byte [] startKey = locations.getRegionLocation().getRegionInfo().getStartKey();
+
     // 获得对应的tables
+    // 获得表对应的 locations 的array
     ConcurrentMap<byte[], RegionLocations> tableLocations = getTableLocations(tableName);
+
     // 更新新的表
+    // 如果存在，则返回存在的locations；如果不存在则新建locations，返回的是新建的Locations
     RegionLocations oldLocation = tableLocations.putIfAbsent(startKey, locations);
 
+    // TODO 疑问，这里永远不会等于null啊，除非Locations就是null
     boolean isNewCacheEntry = (oldLocation == null);
     // 如果是新添加的location信息，需要把serverName放入缓存中
     if (isNewCacheEntry) {
@@ -179,6 +189,8 @@ public class MetaCache {
     // Meta record might be stale - some (probably the same) server has closed the region
     // with later seqNum and told us about the new location.
     RegionLocations mergedLocation = oldLocation.mergeLocations(locations);
+
+    // 如果startkey相同，则进行替换
     boolean replaced = tableLocations.replace(startKey, oldLocation, mergedLocation);
     if (replaced && LOG.isTraceEnabled()) {
       LOG.trace("Merged cached locations: " + mergedLocation);

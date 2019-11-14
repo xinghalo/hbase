@@ -211,8 +211,7 @@ public class RegionLocations {
         regionInfo = otherLoc.getRegionInfo();
       }
 
-      HRegionLocation selectedLoc = selectRegionLocation(thisLoc,
-        otherLoc, true, false);
+      HRegionLocation selectedLoc = selectRegionLocation(thisLoc, otherLoc, true, false);
 
       if (selectedLoc != thisLoc) {
         if (newLocations == null) {

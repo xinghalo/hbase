@@ -1415,8 +1415,9 @@ class ConnectionManager {
             throw e;
           }
           // Only relocate the parent region if necessary
-          if(!(e instanceof RegionOfflineException ||
-              e instanceof NoServerForRegionException)) {
+          // 当region下线或者server offline，查询meta表
+          if(!(e instanceof RegionOfflineException || e instanceof NoServerForRegionException)) {
+            // TODO 查询meta中的副本？？？
             relocateRegion(TableName.META_TABLE_NAME, metaKey, replicaId);
           }
         } finally {

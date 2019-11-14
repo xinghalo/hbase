@@ -203,10 +203,8 @@ class AsyncProcess {
   protected final ExecutorService pool;
 
   protected final AtomicLong tasksInProgress = new AtomicLong(0);
-  protected final ConcurrentMap<byte[], AtomicInteger> taskCounterPerRegion =
-      new ConcurrentSkipListMap<byte[], AtomicInteger>(Bytes.BYTES_COMPARATOR);
-  protected final ConcurrentMap<ServerName, AtomicInteger> taskCounterPerServer =
-      new ConcurrentHashMap<ServerName, AtomicInteger>();
+  protected final ConcurrentMap<byte[], AtomicInteger> taskCounterPerRegion = new ConcurrentSkipListMap<byte[], AtomicInteger>(Bytes.BYTES_COMPARATOR);
+  protected final ConcurrentMap<ServerName, AtomicInteger> taskCounterPerServer = new ConcurrentHashMap<ServerName, AtomicInteger>();
 
   // Start configuration settings.
   private final int startLogErrorsCnt;
@@ -914,12 +912,13 @@ class AsyncProcess {
      * @param numAttempt - the current numAttempt (first attempt is 1)
      */
     private void groupAndSendMultiAction(List<Action<Row>> currentActions, int numAttempt) {
-      Map<ServerName, MultiAction<Row>> actionsByServer =
-          new HashMap<ServerName, MultiAction<Row>>();
+      Map<ServerName, MultiAction<Row>> actionsByServer = new HashMap<ServerName, MultiAction<Row>>();
 
       boolean isReplica = false;
       List<Action<Row>> unknownReplicaActions = null;
+
       for (Action<Row> action : currentActions) {
+        // 查询region
         RegionLocations locs = findAllLocationsOrFail(action, true);
         if (locs == null) continue;
         boolean isReplicaAction = !RegionReplicaUtil.isDefaultReplica(action.getReplicaId());
@@ -928,6 +927,8 @@ class AsyncProcess {
           throw new AssertionError("Replica and non-replica actions in the same retry");
         }
         isReplica = isReplicaAction;
+
+        // 获取region
         HRegionLocation loc = locs.getRegionLocation(action.getReplicaId());
         if (loc == null || loc.getServerName() == null) {
           if (isReplica) {
@@ -944,13 +945,14 @@ class AsyncProcess {
           addAction(loc.getServerName(), regionName, action, actionsByServer, nonceGroup);
         }
       }
+
       boolean doStartReplica = (numAttempt == 1 && !isReplica && hasAnyReplicaGets);
       boolean hasUnknown = unknownReplicaActions != null && !unknownReplicaActions.isEmpty();
 
       if (!actionsByServer.isEmpty()) {
         // If this is a first attempt to group and send, no replicas, we need replica thread.
-        sendMultiAction(actionsByServer, numAttempt, (doStartReplica && !hasUnknown)
-            ? currentActions : null, numAttempt > 1 && !hasUnknown);
+        sendMultiAction(actionsByServer, numAttempt, (doStartReplica && !hasUnknown)? currentActions : null,
+                numAttempt > 1 && !hasUnknown);
       }
 
       if (hasUnknown) {
@@ -962,8 +964,7 @@ class AsyncProcess {
           addAction(loc.getServerName(), regionName, action, actionsByServer, nonceGroup);
         }
         if (!actionsByServer.isEmpty()) {
-          sendMultiAction(
-              actionsByServer, numAttempt, doStartReplica ? currentActions : null, true);
+          sendMultiAction(actionsByServer, numAttempt, doStartReplica ? currentActions : null, true);
         }
       }
     }

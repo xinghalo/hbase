@@ -906,8 +906,7 @@ public class HTable implements HTableInterface, RegionLocator {
    * {@inheritDoc}
    */
   @Override
-  public void batch(final List<? extends Row> actions, final Object[] results)
-      throws InterruptedException, IOException {
+  public void batch(final List<? extends Row> actions, final Object[] results) throws InterruptedException, IOException {
     AsyncRequestFuture ars = multiAp.submitAll(pool, tableName, actions, null, results);
     ars.waitUntilDone();
     if (ars.hasError()) {

@@ -129,8 +129,7 @@ public class ClientScanner extends AbstractClientScanner {
       this.connection = connection;
       this.pool = pool;
       this.primaryOperationTimeout = primaryOperationTimeout;
-      this.retries = conf.getInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER,
-          HConstants.DEFAULT_HBASE_CLIENT_RETRIES_NUMBER);
+      this.retries = conf.getInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, HConstants.DEFAULT_HBASE_CLIENT_RETRIES_NUMBER);
       if (scan.getMaxResultSize() > 0) {
         this.maxScannerResultSize = scan.getMaxResultSize();
       } else {
@@ -496,8 +495,7 @@ public class ClientScanner extends AbstractClientScanner {
       // Groom the array of Results that we received back from the server before adding that
       // Results to the scanner's cache. If partial results are not allowed to be seen by the
       // caller, all book keeping will be performed within this method.
-      List<Result> resultsToAddToCache =
-          getResultsToAddToCache(values, callable.isHeartbeatMessage());
+      List<Result> resultsToAddToCache = getResultsToAddToCache(values, callable.isHeartbeatMessage());
       if (!resultsToAddToCache.isEmpty()) {
         for (Result rs : resultsToAddToCache) {
           rs = filterLoadedCell(rs);
