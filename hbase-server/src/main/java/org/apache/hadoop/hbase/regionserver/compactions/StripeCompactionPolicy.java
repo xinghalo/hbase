@@ -54,15 +54,13 @@ public class StripeCompactionPolicy extends CompactionPolicy {
 
   private StripeStoreConfig config;
 
-  public StripeCompactionPolicy(
-      Configuration conf, StoreConfigInformation storeConfigInfo, StripeStoreConfig config) {
+  public StripeCompactionPolicy(Configuration conf, StoreConfigInformation storeConfigInfo, StripeStoreConfig config) {
     super(conf, storeConfigInfo);
     this.config = config;
     stripePolicy = new ExploringCompactionPolicy(conf, storeConfigInfo);
   }
 
-  public List<StoreFile> preSelectFilesForCoprocessor(StripeInformationProvider si,
-      List<StoreFile> filesCompacting) {
+  public List<StoreFile> preSelectFilesForCoprocessor(StripeInformationProvider si, List<StoreFile> filesCompacting) {
     // We sincerely hope nobody is messing with us with their coprocessors.
     // If they do, they are very likely to shoot themselves in the foot.
     // We'll just exclude all the filesCompacting from the list.
@@ -71,8 +69,7 @@ public class StripeCompactionPolicy extends CompactionPolicy {
     return candidateFiles;
   }
 
-  public StripeCompactionRequest createEmptyRequest(
-      StripeInformationProvider si, CompactionRequest request) {
+  public StripeCompactionRequest createEmptyRequest(StripeInformationProvider si, CompactionRequest request) {
     // Treat as L0-ish compaction with fixed set of files, and hope for the best.
     if (si.getStripeCount() > 0) {
       return new BoundaryStripeCompactionRequest(request, si.getStripeBoundaries());
@@ -83,8 +80,7 @@ public class StripeCompactionPolicy extends CompactionPolicy {
         request, OPEN_KEY, OPEN_KEY, targetKvsAndCount.getSecond(), targetKvsAndCount.getFirst());
   }
 
-  public StripeStoreFlusher.StripeFlushRequest selectFlush(
-      StripeInformationProvider si, int kvCount) {
+  public StripeStoreFlusher.StripeFlushRequest selectFlush(StripeInformationProvider si, int kvCount) {
     if (this.config.isUsingL0Flush()) {
       return new StripeStoreFlusher.StripeFlushRequest(); // L0 is used, return dumb request.
     }
@@ -97,8 +93,7 @@ public class StripeCompactionPolicy extends CompactionPolicy {
     return new StripeStoreFlusher.BoundaryStripeFlushRequest(si.getStripeBoundaries());
   }
 
-  public StripeCompactionRequest selectCompaction(StripeInformationProvider si,
-      List<StoreFile> filesCompacting, boolean isOffpeak) throws IOException {
+  public StripeCompactionRequest selectCompaction(StripeInformationProvider si, List<StoreFile> filesCompacting, boolean isOffpeak) throws IOException {
     // TODO: first cut - no parallel compactions. To have more fine grained control we
     //       probably need structure more sophisticated than a list.
     if (!filesCompacting.isEmpty()) {
@@ -116,8 +111,7 @@ public class StripeCompactionPolicy extends CompactionPolicy {
     if (StoreUtils.hasReferences(allFiles)) {
       LOG.debug("There are references in the store; compacting all files");
       long targetKvs = estimateTargetKvs(allFiles, config.getInitialCount()).getFirst();
-      SplitStripeCompactionRequest request = new SplitStripeCompactionRequest(
-          allFiles, OPEN_KEY, OPEN_KEY, targetKvs);
+      SplitStripeCompactionRequest request = new SplitStripeCompactionRequest(allFiles, OPEN_KEY, OPEN_KEY, targetKvs);
       request.setMajorRangeFull();
       return request;
     }

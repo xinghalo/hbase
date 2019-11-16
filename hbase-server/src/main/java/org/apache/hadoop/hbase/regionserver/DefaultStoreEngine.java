@@ -58,8 +58,7 @@ public class DefaultStoreEngine extends StoreEngine<
 
   @Override
   public boolean needsCompaction(List<StoreFile> filesCompacting) {
-    return compactionPolicy.needsCompaction(
-        this.storeFileManager.getStorefiles(), filesCompacting);
+    return compactionPolicy.needsCompaction(this.storeFileManager.getStorefiles(), filesCompacting);
   }
 
   @Override
@@ -100,10 +99,8 @@ public class DefaultStoreEngine extends StoreEngine<
 
   private class DefaultCompactionContext extends CompactionContext {
     @Override
-    public boolean select(List<StoreFile> filesCompacting, boolean isUserCompaction,
-        boolean mayUseOffPeak, boolean forceMajor) throws IOException {
-      request = compactionPolicy.selectCompaction(storeFileManager.getStorefiles(),
-          filesCompacting, isUserCompaction, mayUseOffPeak, forceMajor);
+    public boolean select(List<StoreFile> filesCompacting, boolean isUserCompaction, boolean mayUseOffPeak, boolean forceMajor) throws IOException {
+      request = compactionPolicy.selectCompaction(storeFileManager.getStorefiles(), filesCompacting, isUserCompaction, mayUseOffPeak, forceMajor);
       return request != null;
     }
 

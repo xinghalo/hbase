@@ -1,0 +1,54 @@
+@startuml
+
+skinparam handwritten false
+
+participant HRegionServer
+participant HStore
+participant ChoreService
+participant StoreEngine
+
+== 初始化阶段 ==
+
+activate HRegionServer
+HRegionServer -> HRegionServer: run()
+activate HRegionServer
+HRegionServer -> HRegionServer: preRegistrationInitialization()
+activate HRegionServer
+HRegionServer -> HRegionServer: initializeThreads()
+HRegionServer -> CompactSplitThread: 初始化
+HRegionServer -> CompactionChecker: 初始化
+deactivate HRegionServer
+deactivate HRegionServer
+HRegionServer -> HRegionServer : handleReportForDutyResponse
+activate HRegionServer
+HRegionServer -> HRegionServer : startServiceThreads
+HRegionServer -> ChoreService : scheduleChore
+deactivate HRegionServer
+deactivate HRegionServer
+
+== 定时调度阶段 ==
+
+ChoreService -> CompactionChecker: chore
+CompactionChecker -> HStore: needsCompact
+CompactionChecker -> CompactSplitThread: requestCompaction合并
+activate CompactSplitThread
+CompactSplitThread -> CompactSplitThread: requestCompactionInternal
+activate CompactSplitThread
+activate CompactSplitThread
+CompactSplitThread -> CompactSplitThread: selectCompaction
+CompactSplitThread -> HStore: requestCompaction 构建compactionContext
+HStore -> HStore: removeUnneededFiles
+HStore -> StoreEngine: createCompaction
+HStore -> CompactionContext: select
+CompactionContext -> ExploringCompactionPolicy:selectCompaction
+activate ExploringCompactionPolicy #FFBBBB
+note right: 核心逻辑
+deactivate ExploringCompactionPolicy
+HStore --> CompactSplitThread: CompactionContext
+deactivate CompactSplitThread
+
+CompactSplitThread -> CompactSplitThread: new CompactionRunner
+deactivate CompactSplitThread
+deactivate CompactSplitThread
+
+@enduml

@@ -48,17 +48,22 @@ import com.google.common.collect.Collections2;
 public class RatioBasedCompactionPolicy extends CompactionPolicy {
   private static final Log LOG = LogFactory.getLog(RatioBasedCompactionPolicy.class);
 
-  public RatioBasedCompactionPolicy(Configuration conf,
-                                    StoreConfigInformation storeConfigInfo) {
+  public RatioBasedCompactionPolicy(Configuration conf, StoreConfigInformation storeConfigInfo) {
     super(conf, storeConfigInfo);
   }
 
-  private ArrayList<StoreFile> getCurrentEligibleFiles(
-      ArrayList<StoreFile> candidateFiles, final List<StoreFile> filesCompacting) {
+  /**
+   * 获取候选文件
+   *
+   * @param candidateFiles  候选文件
+   * @param filesCompacting 合并文件 TODO 这里的文件那里来的
+   * @return
+   */
+  private ArrayList<StoreFile> getCurrentEligibleFiles( ArrayList<StoreFile> candidateFiles, final List<StoreFile> filesCompacting) {
     // candidates = all storefiles not already in compaction queue
     if (!filesCompacting.isEmpty()) {
-      // exclude all files older than the newest file we're currently
-      // compacting. this allows us to preserve contiguity (HBASE-2856)
+      // exclude all files older than the newest file we're currently compacting.
+      // this allows us to preserve contiguity (HBASE-2856)
       StoreFile last = filesCompacting.get(filesCompacting.size() - 1);
       int idx = candidateFiles.indexOf(last);
       Preconditions.checkArgument(idx != -1);
@@ -67,8 +72,7 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
     return candidateFiles;
   }
 
-  public List<StoreFile> preSelectCompactionForCoprocessor(
-      final Collection<StoreFile> candidates, final List<StoreFile> filesCompacting) {
+  public List<StoreFile> preSelectCompactionForCoprocessor(final Collection<StoreFile> candidates, final List<StoreFile> filesCompacting) {
     return getCurrentEligibleFiles(new ArrayList<StoreFile>(candidates), filesCompacting);
   }
 
@@ -78,16 +82,18 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
    * @throws java.io.IOException
    */
   public CompactionRequest selectCompaction(Collection<StoreFile> candidateFiles,
-      final List<StoreFile> filesCompacting, final boolean isUserCompaction,
-      final boolean mayUseOffPeak, final boolean forceMajor) throws IOException {
+                                            final List<StoreFile> filesCompacting,
+                                            final boolean isUserCompaction,
+                                            final boolean mayUseOffPeak,
+                                            final boolean forceMajor) throws IOException {
     // Preliminary compaction subject to filters
     ArrayList<StoreFile> candidateSelection = new ArrayList<StoreFile>(candidateFiles);
+
     // Stuck and not compacting enough (estimate). It is not guaranteed that we will be
     // able to compact more if stuck and compacting, because ratio policy excludes some
     // non-compacting files from consideration during compaction (see getCurrentEligibleFiles).
     int futureFiles = filesCompacting.isEmpty() ? 0 : 1;
-    boolean mayBeStuck = (candidateFiles.size() - filesCompacting.size() + futureFiles)
-        >= storeConfigInfo.getBlockingFileCount();
+    boolean mayBeStuck = (candidateFiles.size() - filesCompacting.size() + futureFiles) >= storeConfigInfo.getBlockingFileCount();
     candidateSelection = getCurrentEligibleFiles(candidateSelection, filesCompacting);
     LOG.debug("Selecting compaction from " + candidateFiles.size() + " store files, " +
         filesCompacting.size() + " compacting, " + candidateSelection.size() +
@@ -96,6 +102,7 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
     // If we can't have all files, we cannot do major anyway
     boolean isAllFiles = candidateFiles.size() == candidateSelection.size();
     if (!(forceMajor && isAllFiles)) {
+      // 跳过大文件
       candidateSelection = skipLargeFiles(candidateSelection, mayUseOffPeak);
       isAllFiles = candidateFiles.size() == candidateSelection.size();
     }
@@ -128,16 +135,14 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
    * exclude all files above maxCompactSize
    * Also save all references. We MUST compact them
    */
-  private ArrayList<StoreFile> skipLargeFiles(ArrayList<StoreFile> candidates, 
-    boolean mayUseOffpeak) {
+  private ArrayList<StoreFile> skipLargeFiles(ArrayList<StoreFile> candidates, boolean mayUseOffpeak) {
     int pos = 0;
     while (pos < candidates.size() && !candidates.get(pos).isReference()
       && (candidates.get(pos).getReader().length() > comConf.getMaxCompactSize(mayUseOffpeak))) {
       ++pos;
     }
     if (pos > 0) {
-      LOG.debug("Some files are too large. Excluding " + pos
-          + " files from compaction candidates");
+      LOG.debug("Some files are too large. Excluding " + pos + " files from compaction candidates");
       candidates.subList(0, pos).clear();
     }
     return candidates;
@@ -164,8 +169,7 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
    * @return filtered subset
    * take upto maxFilesToCompact from the start
    */
-  private ArrayList<StoreFile> removeExcessFiles(ArrayList<StoreFile> candidates,
-      boolean isUserCompaction, boolean isMajorCompaction) {
+  private ArrayList<StoreFile> removeExcessFiles(ArrayList<StoreFile> candidates, boolean isUserCompaction, boolean isMajorCompaction) {
     int excess = candidates.size() - comConf.getMaxFilesToCompact();
     if (excess > 0) {
       if (isMajorCompaction && isUserCompaction) {
@@ -382,8 +386,7 @@ public class RatioBasedCompactionPolicy extends CompactionPolicy {
     return compactionSize > comConf.getThrottlePoint();
   }
 
-  public boolean needsCompaction(final Collection<StoreFile> storeFiles,
-      final List<StoreFile> filesCompacting) {
+  public boolean needsCompaction(final Collection<StoreFile> storeFiles, final List<StoreFile> filesCompacting) {
     int numCandidates = storeFiles.size() - filesCompacting.size();
     return numCandidates >= comConf.getMinFilesToCompact();
   }

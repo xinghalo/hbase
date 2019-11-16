@@ -211,11 +211,9 @@ public interface Store extends HeapSize, StoreConfigInformation, PropagatingConf
    * @deprecated see requestCompaction(int, CompactionRequest, User)
    */
   @Deprecated
-  CompactionContext requestCompaction(int priority, CompactionRequest baseRequest)
-      throws IOException;
+  CompactionContext requestCompaction(int priority, CompactionRequest baseRequest) throws IOException;
 
-  CompactionContext requestCompaction(int priority, CompactionRequest baseRequest, User user)
-      throws IOException;
+  CompactionContext requestCompaction(int priority, CompactionRequest baseRequest, User user) throws IOException;
 
   void cancelRequestedCompaction(CompactionContext compaction);
 

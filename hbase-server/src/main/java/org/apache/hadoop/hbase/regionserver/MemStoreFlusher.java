@@ -78,10 +78,8 @@ class MemStoreFlusher implements FlushRequester {
   private Configuration conf;
   // These two data members go together.  Any entry in the one must have
   // a corresponding entry in the other.
-  private final BlockingQueue<FlushQueueEntry> flushQueue =
-    new DelayQueue<FlushQueueEntry>();
-  private final Map<Region, FlushRegionEntry> regionsInQueue =
-    new HashMap<Region, FlushRegionEntry>();
+  private final BlockingQueue<FlushQueueEntry> flushQueue = new DelayQueue<FlushQueueEntry>();
+  private final Map<Region, FlushRegionEntry> regionsInQueue = new HashMap<Region, FlushRegionEntry>();
   private AtomicBoolean wakeupPending = new AtomicBoolean();
 
   private final long threadWakeFrequency;
@@ -450,8 +448,7 @@ class MemStoreFlusher implements FlushRequester {
             "store files; delaying flush up to " + this.blockingWaitTime + "ms");
           if (!this.server.compactSplitThread.requestSplit(region)) {
             try {
-              this.server.compactSplitThread.requestSystemCompaction(
-                  region, Thread.currentThread().getName());
+              this.server.compactSplitThread.requestSystemCompaction(region, Thread.currentThread().getName());
             } catch (IOException e) {
               LOG.error("Cache flush failed for region " +
                   Bytes.toStringBinary(region.getRegionInfo().getRegionName()),
@@ -482,8 +479,7 @@ class MemStoreFlusher implements FlushRequester {
    * false, there will be accompanying log messages explaining why the region was
    * not flushed.
    */
-  private boolean flushRegion(final Region region, final boolean emergencyFlush,
-      boolean forceFlushAllStores) {
+  private boolean flushRegion(final Region region, final boolean emergencyFlush, boolean forceFlushAllStores) {
     long startTime = 0;
     synchronized (this.regionsInQueue) {
       FlushRegionEntry fqe = this.regionsInQueue.remove(region);

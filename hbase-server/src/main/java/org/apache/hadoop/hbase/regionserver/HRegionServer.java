@@ -268,15 +268,13 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
    * it seems a bit weird to store ServerName since ServerName refers to RegionServers
    * and here we really mean DataNode locations.
    */
-  protected final Map<String, InetSocketAddress[]> regionFavoredNodesMap =
-      new ConcurrentHashMap<String, InetSocketAddress[]>();
+  protected final Map<String, InetSocketAddress[]> regionFavoredNodesMap = new ConcurrentHashMap<String, InetSocketAddress[]>();
 
   /**
    * Set of regions currently being in recovering state which means it can accept writes(edits from
    * previous failed region server) but not reads. A recovering region is also an online region.
    */
-  protected final Map<String, Region> recoveringRegions = Collections
-      .synchronizedMap(new HashMap<String, Region>());
+  protected final Map<String, Region> recoveringRegions = Collections.synchronizedMap(new HashMap<String, Region>());
 
   // Leases
   protected Leases leases;
@@ -828,11 +826,16 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     this.cacheFlusher = new MemStoreFlusher(conf, this);
 
     // Compaction thread
+    // 文件合并线程
     this.compactSplitThread = new CompactSplitThread(this);
 
     // Background thread to check for compactions; needed if region has not gotten updates
     // in a while. It will take care of not checking too frequently on store-by-store basis.
+    // 周期性的调度，检查是否需要合并
     this.compactionChecker = new CompactionChecker(this, this.threadWakeFrequency, this);
+
+
+
     this.periodicFlusher = new PeriodicMemstoreFlusher(this.threadWakeFrequency, this);
     this.leases = new Leases(this.threadWakeFrequency);
 
@@ -1538,8 +1541,7 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     private final static int DEFAULT_PRIORITY = Integer.MAX_VALUE;
     private long iteration = 0;
 
-    CompactionChecker(final HRegionServer h, final int sleepTime,
-        final Stoppable stopper) {
+    CompactionChecker(final HRegionServer h, final int sleepTime, final Stoppable stopper) {
       super("CompactionChecker", stopper, sleepTime);
       this.instance = h;
       LOG.info(this.getName() + " runs every " + StringUtils.formatTime(sleepTime));
@@ -1547,33 +1549,34 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
       /* MajorCompactPriority is configurable.
        * If not set, the compaction will use default priority.
        */
-      this.majorCompactPriority = this.instance.conf.
-        getInt("hbase.regionserver.compactionChecker.majorCompactPriority",
-        DEFAULT_PRIORITY);
+      this.majorCompactPriority = this.instance.conf.getInt("hbase.regionserver.compactionChecker.majorCompactPriority", DEFAULT_PRIORITY);
     }
 
     @Override
     protected void chore() {
+      // 获取所有在线的region
       for (Region r : this.instance.onlineRegions.values()) {
         if (r == null)
           continue;
+        // 获取每个region下的store
         for (Store s : r.getStores()) {
           try {
+            // 频率系数，默认1000，hbase.server.compactchecker.interval.multiplier
             long multiplier = s.getCompactionCheckMultiplier();
             assert multiplier > 0;
+
             if (iteration % multiplier != 0) continue;
+
+            // 判断是否需要进行compaction，默认如果HFile的数量超过一定的阈值就进行合并，默认3个
             if (s.needsCompaction()) {
               // Queue a compaction. Will recognize if major is needed.
-              this.instance.compactSplitThread.requestSystemCompaction(r, s, getName()
-                  + " requests compaction");
+              this.instance.compactSplitThread.requestSystemCompaction(r, s, getName() + " requests compaction");
             } else if (s.isMajorCompaction()) {
-              if (majorCompactPriority == DEFAULT_PRIORITY
-                  || majorCompactPriority > ((HRegion)r).getCompactPriority()) {
-                this.instance.compactSplitThread.requestCompaction(r, s, getName()
-                    + " requests major compaction; use default priority", null);
+              // 触发major compaction
+              if (majorCompactPriority == DEFAULT_PRIORITY || majorCompactPriority > ((HRegion)r).getCompactPriority()) {
+                this.instance.compactSplitThread.requestCompaction(r, s, getName() + " requests major compaction; use default priority", null);
               } else {
-                this.instance.compactSplitThread.requestCompaction(r, s, getName()
-                    + " requests major compaction; use configured priority",
+                this.instance.compactSplitThread.requestCompaction(r, s, getName() + " requests major compaction; use configured priority",
                   this.majorCompactPriority, null, null);
               }
             }
@@ -1737,8 +1740,8 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
           conf.getInt("hbase.regionserver.executor.openregion.threads", 3)));
     }
 
-    Threads.setDaemonThreadRunning(this.walRoller.getThread(), getName() + ".logRoller",
-        uncaughtExceptionHandler);
+    Threads.setDaemonThreadRunning(this.walRoller.getThread(), getName() + ".logRoller", uncaughtExceptionHandler);
+    // 启动regionflusher
     this.cacheFlusher.start(uncaughtExceptionHandler);
 
     if (this.compactionChecker != null) choreService.scheduleChore(compactionChecker);

@@ -369,6 +369,7 @@ public class HStore implements Store {
   @Override
   public long getStoreFileTtl() {
     // TTL only applies if there's no MIN_VERSIONs setting on the column.
+    // 只有配置了最小版本数时，TTL才会起作用
     return (this.scanInfo.getMinVersions() == 0) ? this.scanInfo.getTtl() : Long.MAX_VALUE;
   }
 
@@ -1220,8 +1221,7 @@ public class HStore implements Store {
       if (!this.conf.getBoolean("hbase.hstore.compaction.complete", true)) {
         LOG.warn("hbase.hstore.compaction.complete is set to false");
         sfs = new ArrayList<StoreFile>(newFiles.size());
-        final boolean evictOnClose =
-            cacheConf != null? cacheConf.shouldEvictOnClose(): true;
+        final boolean evictOnClose = cacheConf != null? cacheConf.shouldEvictOnClose(): true;
         for (Path newFile : newFiles) {
           // Create storefile around what we wrote with a reader on it.
           StoreFile sf = createStoreFileAndReader(newFile);
@@ -1296,8 +1296,7 @@ public class HStore implements Store {
    * @param filesCompacted Files compacted (input).
    * @param newFiles Files from compaction.
    */
-  private void writeCompactionWalRecord(Collection<StoreFile> filesCompacted,
-      Collection<StoreFile> newFiles) throws IOException {
+  private void writeCompactionWalRecord(Collection<StoreFile> filesCompacted, Collection<StoreFile> newFiles) throws IOException {
     if (region.getWAL() == null) return;
     List<Path> inputPaths = new ArrayList<Path>(filesCompacted.size());
     for (StoreFile f : filesCompacted) {
@@ -1315,8 +1314,7 @@ public class HStore implements Store {
   }
 
   @VisibleForTesting
-  void replaceStoreFiles(final Collection<StoreFile> compactedFiles,
-      final Collection<StoreFile> result) throws IOException {
+  void replaceStoreFiles(final Collection<StoreFile> compactedFiles, final Collection<StoreFile> result) throws IOException {
     this.lock.writeLock().lock();
     try {
       this.storeEngine.getStoreFileManager().addCompactionResults(compactedFiles, result);
@@ -1522,22 +1520,23 @@ public class HStore implements Store {
   }
 
   @Override
-  public CompactionContext requestCompaction(int priority, CompactionRequest baseRequest)
-      throws IOException {
+  public CompactionContext requestCompaction(int priority, CompactionRequest baseRequest)throws IOException {
     return requestCompaction(priority, baseRequest, null);
   }
   @Override
-  public CompactionContext requestCompaction(int priority, final CompactionRequest baseRequest,
-      User user) throws IOException {
+  public CompactionContext requestCompaction(int priority, final CompactionRequest baseRequest, User user) throws IOException {
     // don't even select for compaction if writes are disabled
     if (!this.areWritesEnabled()) {
       return null;
     }
 
     // Before we do compaction, try to get rid of unneeded files to simplify things.
+    // 移除没用的文件
     removeUnneededFiles();
 
+    // 创建compaction TODO 了解compaction创建的细节
     final CompactionContext compaction = storeEngine.createCompaction();
+
     CompactionRequest request = null;
     this.lock.readLock().lock();
     try {
@@ -1548,15 +1547,13 @@ public class HStore implements Store {
           final List<StoreFile> candidatesForCoproc = compaction.preSelect(this.filesCompacting);
           boolean override = false;
           if (user == null) {
-            override = getCoprocessorHost().preCompactSelection(this, candidatesForCoproc,
-              baseRequest);
+            override = getCoprocessorHost().preCompactSelection(this, candidatesForCoproc, baseRequest);
           } else {
             try {
               override = user.getUGI().doAs(new PrivilegedExceptionAction<Boolean>() {
                 @Override
                 public Boolean run() throws Exception {
-                  return getCoprocessorHost().preCompactSelection(thisStore, candidatesForCoproc,
-                    baseRequest);
+                  return getCoprocessorHost().preCompactSelection(thisStore, candidatesForCoproc, baseRequest);
                 }
               });
             } catch (InterruptedException ie) {
@@ -1574,11 +1571,14 @@ public class HStore implements Store {
         // Normal case - coprocessor is not overriding file selection.
         if (!compaction.hasSelection()) {
           boolean isUserCompaction = priority == Store.PRIORITY_USER;
-          boolean mayUseOffPeak = offPeakHours.isOffPeakHour() &&
-              offPeakCompactionTracker.compareAndSet(false, true);
+          boolean mayUseOffPeak = offPeakHours.isOffPeakHour() && offPeakCompactionTracker.compareAndSet(false, true);
           try {
-            compaction.select(this.filesCompacting, isUserCompaction,
-              mayUseOffPeak, forceMajor && filesCompacting.isEmpty());
+
+            // 核心代码，前面后面一大坨的协处理器
+            // compactionPolicy.selectCompaction()
+            // TODO 了解策略相关的内容
+            compaction.select(this.filesCompacting, isUserCompaction, mayUseOffPeak, forceMajor && filesCompacting.isEmpty());
+
           } catch (IOException e) {
             if (mayUseOffPeak) {
               offPeakCompactionTracker.set(false);
@@ -1617,8 +1617,7 @@ public class HStore implements Store {
         if (baseRequest != null) {
           // Update the request with what the system thinks the request should be;
           // its up to the request if it wants to listen.
-          compaction.forceSelect(
-              baseRequest.combineWith(compaction.getRequest()));
+          compaction.forceSelect(baseRequest.combineWith(compaction.getRequest()));
         }
         // Finally, we have the resulting files list. Check if we have any files at all.
         request = compaction.getRequest();
@@ -1660,10 +1659,10 @@ public class HStore implements Store {
   }
 
   private void removeUnneededFiles() throws IOException {
+    // 检查是否保留过期数据
     if (!conf.getBoolean("hbase.store.delete.expired.storefile", true)) return;
     if (getFamily().getMinVersions() > 0) {
-      LOG.debug("Skipping expired store file removal due to min version being " +
-          getFamily().getMinVersions());
+      LOG.debug("Skipping expired store file removal due to min version being " + getFamily().getMinVersions());
       return;
     }
     this.lock.readLock().lock();
@@ -1672,8 +1671,7 @@ public class HStore implements Store {
       synchronized (filesCompacting) {
         long cfTtl = getStoreFileTtl();
         if (cfTtl != Long.MAX_VALUE) {
-          delSfs = storeEngine.getStoreFileManager().getUnneededFiles(
-              EnvironmentEdgeManager.currentTime() - cfTtl, filesCompacting);
+          delSfs = storeEngine.getStoreFileManager().getUnneededFiles(EnvironmentEdgeManager.currentTime() - cfTtl, filesCompacting);
           addToCompactingFiles(delSfs);
         }
       }
@@ -1682,10 +1680,13 @@ public class HStore implements Store {
     }
     if (delSfs == null || delSfs.isEmpty()) return;
 
+    // 如果存在要删除的文件
     Collection<StoreFile> newFiles = new ArrayList<StoreFile>(); // No new files.
+
     writeCompactionWalRecord(delSfs, newFiles);
     replaceStoreFiles(delSfs, newFiles);
     completeCompaction(delSfs);
+
     LOG.info("Completed removal of " + delSfs.size() + " unnecessary (expired) file(s) in "
         + this + " of " + this.getRegionInfo().getRegionNameAsString()
         + "; total size for store is " + TraditionalBinaryPrefix.long2String(storeSize, "", 1));
@@ -1765,8 +1766,7 @@ public class HStore implements Store {
    * @param compactedFiles list of files that were compacted
    */
   @VisibleForTesting
-  protected void completeCompaction(final Collection<StoreFile> compactedFiles, boolean removeFiles)
-      throws IOException {
+  protected void completeCompaction(final Collection<StoreFile> compactedFiles, boolean removeFiles) throws IOException {
     try {
       // Do not delete old store files until we have sent out notification of
       // change in case old files are still being accessed by outstanding scanners.
@@ -1777,8 +1777,7 @@ public class HStore implements Store {
 
       // let the archive util decide if we should archive or delete the files
       LOG.debug("Removing store files after compaction...");
-      boolean evictOnClose = 
-          cacheConf != null? cacheConf.shouldEvictOnClose(): true; 
+      boolean evictOnClose = cacheConf != null? cacheConf.shouldEvictOnClose(): true;
       for (StoreFile compactedFile : compactedFiles) {
         compactedFile.closeReader(evictOnClose);
       }
