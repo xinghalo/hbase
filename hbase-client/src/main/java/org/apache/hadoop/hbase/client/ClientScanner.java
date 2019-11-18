@@ -256,8 +256,7 @@ public class ClientScanner extends AbstractClientScanner {
      * @param nbRows
      * @param done Server-side says we're done scanning.
      */
-  protected boolean nextScanner(int nbRows, final boolean done)
-    throws IOException {
+  protected boolean nextScanner(int nbRows, final boolean done) throws IOException {
       // Close the previous scanner if it's open
       if (this.callable != null) {
         this.callable.setClose();
@@ -271,28 +270,27 @@ public class ClientScanner extends AbstractClientScanner {
       // if we're at end of table, close and return false to stop iterating
       if (this.currentRegion != null) {
         byte [] endKey = this.currentRegion.getEndKey();
-        if (endKey == null ||
-            Bytes.equals(endKey, HConstants.EMPTY_BYTE_ARRAY) ||
-            checkScanStopRow(endKey) ||
-            done) {
+        // 判断当前是否已经到达region的末尾
+        if (endKey == null || Bytes.equals(endKey, HConstants.EMPTY_BYTE_ARRAY) || checkScanStopRow(endKey) || done) {
           close();
           if (LOG.isTraceEnabled()) {
             LOG.trace("Finished " + this.currentRegion);
           }
           return false;
         }
+
         localStartKey = endKey;
         if (LOG.isTraceEnabled()) {
           LOG.trace("Finished " + this.currentRegion);
         }
       } else {
+        // 默认localstart为空串
         localStartKey = this.scan.getStartRow();
       }
 
       if (LOG.isDebugEnabled() && this.currentRegion != null) {
         // Only worth logging if NOT first region in scan.
-        LOG.debug("Advancing internal scanner to startKey at '" +
-          Bytes.toStringBinary(localStartKey) + "'");
+        LOG.debug("Advancing internal scanner to startKey at '" + Bytes.toStringBinary(localStartKey) + "'");
       }
       try {
         callable = getScannerCallable(localStartKey, nbRows);
@@ -300,6 +298,7 @@ public class ClientScanner extends AbstractClientScanner {
         // beginning of the region
         call(callable, caller, scannerTimeout);
         this.currentRegion = callable.getHRegionInfo();
+
         if (this.scanMetrics != null) {
           this.scanMetrics.countOfRegions.incrementAndGet();
         }
@@ -492,6 +491,7 @@ public class ClientScanner extends AbstractClientScanner {
         this.scanMetrics.sumOfMillisSecBetweenNexts.addAndGet(currentTime - lastNext);
       }
       lastNext = currentTime;
+
       // Groom the array of Results that we received back from the server before adding that
       // Results to the scanner's cache. If partial results are not allowed to be seen by the
       // caller, all book keeping will be performed within this method.
@@ -578,9 +578,7 @@ public class ClientScanner extends AbstractClientScanner {
    * @return the list of results that should be added to the cache.
    * @throws IOException
    */
-  protected List<Result>
-      getResultsToAddToCache(Result[] resultsFromServer, boolean heartbeatMessage)
-          throws IOException {
+  protected List<Result> getResultsToAddToCache(Result[] resultsFromServer, boolean heartbeatMessage) throws IOException {
     int resultSize = resultsFromServer != null ? resultsFromServer.length : 0;
     List<Result> resultsToAddToCache = new ArrayList<Result>(resultSize);
 

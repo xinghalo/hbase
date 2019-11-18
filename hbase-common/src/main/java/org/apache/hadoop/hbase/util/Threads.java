@@ -235,8 +235,7 @@ public class Threads {
    * @return a thread factory that creates named, daemon threads with
    *         the supplied exception handler and normal priority
    */
-  public static ThreadFactory newDaemonThreadFactory(final String prefix,
-      final UncaughtExceptionHandler handler) {
+  public static ThreadFactory newDaemonThreadFactory(final String prefix, final UncaughtExceptionHandler handler) {
     final ThreadFactory namedFactory = getNamedThreadFactory(prefix);
     return new ThreadFactory() {
       @Override

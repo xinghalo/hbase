@@ -1,0 +1,10 @@
+@startuml
+==创建Connection==
+ConnectionFactory -> HConnectionImplementation : createConnection(conf)，使用反射实例化
+HConnectionImplementation --> ConnectionFactory: Connection
+==创建Table==
+HConnectionImplementation -> HTable :getTable(表名)
+HTable --> HConnectionImplementation: Table
+==执行查询==
+HTable -> Result : Get/Put/Scan
+@enduml

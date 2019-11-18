@@ -202,6 +202,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
       }
     } else {
       if (scannerId == -1L) {
+        // 开启Scanner，占用scannId
         this.scannerId = openScanner();
       } else {
         Result [] rrs = null;
@@ -210,9 +211,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
         setHeartbeatMessage(false);
         try {
           incRPCcallsMetrics();
-          request =
-              RequestConverter.buildScanRequest(scannerId, caching, false, nextCallSeq,
-                this.scanMetrics != null, renew);
+          request = RequestConverter.buildScanRequest(scannerId, caching, false, nextCallSeq,this.scanMetrics != null, renew);
           ScanResponse response = null;
           controller = controllerFactory.newController();
           controller.setPriority(getTableName());
@@ -238,8 +237,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
               long now = System.currentTimeMillis();
               if (now - timestamp > logCutOffLatency) {
                 int rows = rrs == null ? 0 : rrs.length;
-                LOG.info("Took " + (now-timestamp) + "ms to fetch "
-                  + rows + " rows from scanner=" + scannerId);
+                LOG.info("Took " + (now-timestamp) + "ms to fetch " + rows + " rows from scanner=" + scannerId);
               }
             }
             updateServerSideMetrics(response);
@@ -393,16 +391,13 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
 
   protected long openScanner() throws IOException {
     incRPCcallsMetrics();
-    ScanRequest request =
-      RequestConverter.buildScanRequest(
-        getLocation().getRegionInfo().getRegionName(),
-        this.scan, 0, false);
+    ScanRequest request = RequestConverter.buildScanRequest(getLocation().getRegionInfo().getRegionName(),
+            this.scan, 0, false);
     try {
       ScanResponse response = getStub().scan(null, request);
       long id = response.getScannerId();
       if (logScannerActivity) {
-        LOG.info("Open scanner=" + id + " for scan=" + scan.toString()
-          + " on region " + getLocation().toString());
+        LOG.info("Open scanner=" + id + " for scan=" + scan.toString() + " on region " + getLocation().toString());
       }
       return id;
     } catch (ServiceException se) {

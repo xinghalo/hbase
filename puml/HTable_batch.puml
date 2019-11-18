@@ -1,0 +1,31 @@
+@startuml
+group 根据row创建rpc调用
+HTable -> AsyncProcess: submitAll(actions, results)
+AsyncProcess -> AsyncProcess: createAsyncRequestFuture
+
+AsyncProcess -> AsyncRequestFutureImpl: groupAndSendMultiAction 按照rs分组
+AsyncRequestFutureImpl -> AsyncRequestFutureImpl: sendMultiAction
+AsyncRequestFutureImpl -> AsyncRequestFutureImpl: getNewMultiActionRunnable
+note right: 背压策略，封装Runnable，配置actionsInProgress相同
+
+AsyncRequestFutureImpl -> ExecutorService: submit
+ExecutorService --> AsyncRequestFutureImpl:
+AsyncRequestFutureImpl --> AsyncProcess:
+AsyncProcess --> HTable: AsyncRequestFutureImpl
+end
+group 新建RPC线程提交到线程池，异步执行
+ExecutorService -> SingleServerRequestRunnable: run
+SingleServerRequestRunnable -> SingleServerRequestRunnable: createCallable
+SingleServerRequestRunnable -> RpcRetryingCaller: callWithoutRetries
+group 结果回调
+SingleServerRequestRunnable -> SingleServerRequestRunnable: receiveMultiAction
+SingleServerRequestRunnable -> SingleServerRequestRunnable: setResult(action, result)
+SingleServerRequestRunnable -> SingleServerRequestRunnable: trySetResultSimple
+SingleServerRequestRunnable -> SingleServerRequestRunnable: decActionCounter
+end
+SingleServerRequestRunnable -> AsyncRequestFutureImpl: actionsInProgress -= 1
+end
+
+
+HTable -> AsyncRequestFutureImpl: waitUntilDone actionsInProgress=0 时，释放；阻塞等待执行结束，results是结果
+@enduml

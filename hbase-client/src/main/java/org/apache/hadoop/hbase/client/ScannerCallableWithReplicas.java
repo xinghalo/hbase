@@ -132,13 +132,12 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
 
   @Override
   public Result [] call(int timeout) throws IOException {
-    // If the active replica callable was closed somewhere, invoke the RPC to
-    // really close it. In the case of regular scanners, this applies. We make couple
-    // of RPCs to a RegionServer, and when that region is exhausted, we set
+    // If the active replica callable was closed somewhere, invoke the RPC to really close it.
+    // In the case of regular scanners, this applies.
+    // We make couple of RPCs to a RegionServer, and when that region is exhausted, we set
     // the closed flag. Then an RPC is required to actually close the scanner.
     if (currentScannerCallable != null && currentScannerCallable.closed) {
-      // For closing we target that exact scanner (and not do replica fallback like in
-      // the case of normal reads)
+      // For closing we target that exact scanner (and not do replica fallback like in the case of normal reads)
       if (LOG.isTraceEnabled()) {
         LOG.trace("Closing scanner id=" + currentScannerCallable.scannerId);
       }
@@ -146,23 +145,19 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
       currentScannerCallable = null;
       return r;
     }
+
     // We need to do the following:
-    //1. When a scan goes out to a certain replica (default or not), we need to
-    //   continue to hit that until there is a failure. So store the last successfully invoked
-    //   replica
-    //2. We should close the "losing" scanners (scanners other than the ones we hear back
-    //   from first)
-    //
+    //1. When a scan goes out to a certain replica (default or not), we need to continue to hit that until there is a failure.
+    //   So store the last successfully invoked replica
+    //2. We should close the "losing" scanners (scanners other than the ones we hear back from first)
+
     RegionLocations rl = RpcRetryingCallerWithReadReplicas.getRegionLocations(true,
-        RegionReplicaUtil.DEFAULT_REPLICA_ID, cConnection, tableName,
-        currentScannerCallable.getRow());
+        RegionReplicaUtil.DEFAULT_REPLICA_ID, cConnection, tableName, currentScannerCallable.getRow());
 
     // allocate a boundedcompletion pool of some multiple of number of replicas.
     // We want to accomodate some RPCs for redundant replica scans (but are still in progress)
-    ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs =
-        new ResultBoundedCompletionService<Pair<Result[], ScannerCallable>>(
-            RpcRetryingCallerFactory.instantiate(ScannerCallableWithReplicas.this.conf), pool,
-            rl.size() * 5);
+    ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs = new ResultBoundedCompletionService<Pair<Result[], ScannerCallable>>(
+            RpcRetryingCallerFactory.instantiate(ScannerCallableWithReplicas.this.conf), pool,rl.size() * 5);
 
     AtomicBoolean done = new AtomicBoolean(false);
     replicaSwitched.set(false);
@@ -171,8 +166,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
 
     try {
       // wait for the timeout to see whether the primary responds back
-      Future<Pair<Result[], ScannerCallable>> f = cs.poll(timeBeforeReplicas,
-          TimeUnit.MICROSECONDS); // Yes, microseconds
+      Future<Pair<Result[], ScannerCallable>> f = cs.poll(timeBeforeReplicas, TimeUnit.MICROSECONDS);
       if (f != null) {
         Pair<Result[], ScannerCallable> r = f.get(timeout, TimeUnit.MILLISECONDS);
         if (r != null && r.getSecond() != null) {
@@ -223,8 +217,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     throw new IOException("Imposible? Arrive at an unreachable line...");
   }
 
-  private void updateCurrentlyServingReplica(ScannerCallable scanner, Result[] result,
-      AtomicBoolean done, ExecutorService pool) {
+  private void updateCurrentlyServingReplica(ScannerCallable scanner, Result[] result, AtomicBoolean done, ExecutorService pool) {
     if (done.compareAndSet(false, true)) {
       if (currentScannerCallable != scanner) replicaSwitched.set(true);
       currentScannerCallable = scanner;
@@ -280,8 +273,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     return currentScannerCallable != null && currentScannerCallable.isHeartbeatMessage();
   }
 
-  private void addCallsForCurrentReplica(
-      ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl) {
+  private void addCallsForCurrentReplica(ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl) {
     RetryingRPC retryingOnReplica = new RetryingRPC(currentScannerCallable);
     outstandingCallables.add(currentScannerCallable);
     cs.submit(retryingOnReplica, scannerTimeout, currentScannerCallable.id);

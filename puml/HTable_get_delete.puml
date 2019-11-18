@@ -1,0 +1,29 @@
+@startuml
+activate HTable
+HTable -> HTable : get()
+==创建RPC的Callable==
+HTable -> HTable : new RegionServerCallable
+HTable -> RpcRetryingCallerFactory: newCaller
+RpcRetryingCallerFactory --> HTable: RpcRetryingCaller
+==执行重试机制的RPC调用==
+HTable -> RpcRetryingCaller : callWithRetries
+activate RpcRetryingCaller
+loop 如果没有超过重试次数就循环
+RpcRetryingCaller -> RegionServerCallable: prepare
+RegionServerCallable -> Connection: getRegionLocator
+Connection --> RegionServerCallable: HRegionLocation
+RpcRetryingCaller -> RegionServerCallable: call
+RegionServerCallable -> RequestConverter: buildGetRequest
+RequestConverter --> RegionServerCallable: ClientProtos.GetRequest
+activate RegionServerCallable
+RegionServerCallable -> BlockingInterface: get()
+note right: 基于NIO的RPC调用
+BlockingInterface --> RegionServerCallable: ClientProtos.GetResponse
+deactivate RegionServerCallable
+RegionServerCallable -> ProtobufUtil: toResult
+ProtobufUtil --> RegionServerCallable : Result
+end
+deactivate RpcRetryingCaller
+RpcRetryingCaller --> HTable: Result
+deactivate HTable
+@enduml

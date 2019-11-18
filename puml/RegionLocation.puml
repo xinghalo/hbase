@@ -1,0 +1,39 @@
+@startuml
+RegionServerCallable -> HConnectionImplementation: getRegionLocator(表名)
+HConnectionImplementation --> RegionServerCallable : RegionLocator
+RegionServerCallable -> RegionLocator: getRegionLocation(row, 是否重新加载)
+RegionLocator -> HConnectionImplementation: getRegionLocation
+HConnectionImplementation -> HConnectionImplementation: locateRegion
+HConnectionImplementation -> HConnectionImplementation: locateRegionInMeta
+HConnectionImplementation -> HConnectionImplementation: getCachedLocation(table, row)
+group 查询缓存
+HConnectionImplementation -> MetaCache: getCachedLocation(table, row)
+MetaCache -> MetaCache: getTableLocations(tableName)
+MetaCache -> CopyOnWriteArrayMap: get(tableName)
+CopyOnWriteArrayMap --> MetaCache: ConcurrentNavigableMap<byte[], RegionLocations>
+MetaCache -> ConcurrentNavigableMap: floorEntry 获得小于等于给定rowkey最大的region
+ConcurrentNavigableMap --> MetaCache: Entry<byte[], RegionLocations>
+MetaCache -> RegionLocations: getRegionLocation().getRegionInfo().getEndKey()
+RegionLocations --> MetaCache: endKey
+MetaCache -> MetaCache: 如何rowkey小于等于endkey则返回
+MetaCache --> HConnectionImplementation: RegionLocations 如果找到就返回
+end
+
+group 查询hbase:meta
+HConnectionImplementation -> HRegionInfo: createRegionName()构建metakey
+HRegionInfo-->HConnectionImplementation:metakey 表名,rokey,99999...99等信息
+HConnectionImplementation -> ClientSmallReversedScanner:next()
+ClientSmallReversedScanner --> HConnectionImplementation: Result
+HConnectionImplementation->MetaTableAccessor: getRegionLocations(result)解析
+MetaTableAccessor --> HConnectionImplementation: RegionLocations
+end
+
+group 更新缓存
+HConnectionImplementation -> HConnectionImplementation:cacheLocation
+HConnectionImplementation -> MetaCache: cacheLocation(tableName, locations)
+end
+
+HConnectionImplementation --> RegionLocator: HRegionLocation
+RegionLocator --> RegionServerCallable : HRegionLocation
+
+@enduml

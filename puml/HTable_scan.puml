@@ -1,0 +1,42 @@
+@startuml
+activate HTable
+group 初始化Scanner
+HTable -> HTable : getScanner
+HTable -> ClientSmallScanner: new
+ClientSmallScanner -> ClientSmallScanner: initializeScannerInConstruction
+ClientSmallScanner -> ClientSmallScanner: nextScanner
+note right: 更新startkey 为查询到的endkey\n获得startkey\n构建ScannerCallable\n构建 ScannerCallableWithReplicas
+ClientSmallScanner -> ClientSmallScanner: getScannerCallable
+ClientSmallScanner -> ScannerCallable: new
+ClientSmallScanner -> ScannerCallableWithReplicas: new
+ClientSmallScanner -> ClientSmallScanner: call
+ClientSmallScanner -> RpcRetryingCaller: callWithoutRetries
+RpcRetryingCaller -> ScannerCallableWithReplicas: prepare
+RpcRetryingCaller -> ScannerCallableWithReplicas: call
+ScannerCallableWithReplicas -> ScannerCallable: call
+ScannerCallable --> ScannerCallableWithReplicas: Result[]
+ScannerCallableWithReplicas --> ClientSmallScanner: Result[]
+ClientSmallScanner --> HTable: Scanner
+end
+
+
+loop 循环调度获取数据
+HTable -> ClientSmallScanner: next()
+ClientSmallScanner -> ClientSmallScanner: loadCache()
+ClientSmallScanner -> ClientSmallScanner: call 返回results
+ClientSmallScanner -> Scan: setStartRow更新开始的rowkey
+ClientSmallScanner -> ClientSmallScanner: getResultsToAddToCache
+ClientSmallScanner -> LinkedList: add()
+ClientSmallScanner -> ClientSmallScanner: possiblyNextScanner
+ClientSmallScanner -> ClientSmallScanner: nextScanner
+note right: 更新key
+
+ClientSmallScanner -> LinkedList: poll()
+LinkedList --> ClientSmallScanner: Result
+
+
+ClientSmallScanner --> HTable: Result
+deactivate HTable
+end
+
+@enduml

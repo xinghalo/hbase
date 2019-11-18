@@ -1,0 +1,28 @@
+@startuml
+HTable -> HTable: put(list)
+group 创建bufferdmutator，每个table创建一次
+HTable -> Connection: getBufferedMutator 共享pool
+BufferedMutatorImpl -> AsyncProcess: new
+AsyncProcess --> BufferedMutatorImpl: AsyncProcess
+Connection --> HTable: BufferedMutatorImpl
+end
+HTable -> BufferedMutatorImpl: mutate()
+group 遍历Put
+BufferedMutatorImpl -> AtomicLong: 更新buffer大小
+BufferedMutatorImpl -> ConcurrentLinkedQueue: 放入Put
+end
+loop 遍历queue，如果大小超过阈值，触发
+BufferedMutatorImpl -> BufferedMutatorImpl: backgroundFlushCommits
+
+loop 遍历queue，如果buffer还存在 || 提交的大小没有超过queue size的两倍 || 开启异步
+BufferedMutatorImpl -> ConcurrentLinkedQueue: poll
+ConcurrentLinkedQueue --> BufferedMutatorImpl: Mutation
+BufferedMutatorImpl -> LinkedList: add
+BufferedMutatorImpl -> AtomicLong: addAndGet(-size)
+BufferedMutatorImpl -> AsyncProcess: submit
+activate AsyncProcess
+AsyncProcess -> AsyncProcess: submit
+note right : 与batch流程相同
+deactivate AsyncProcess
+end
+@enduml
