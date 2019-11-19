@@ -119,24 +119,28 @@ public class ClientScanner extends AbstractClientScanner {
       ClusterConnection connection, RpcRetryingCallerFactory rpcFactory,
       RpcControllerFactory controllerFactory, ExecutorService pool, int primaryOperationTimeout)
       throws IOException {
+
       if (LOG.isTraceEnabled()) {
         LOG.trace("Scan table=" + tableName
             + ", startRow=" + Bytes.toStringBinary(scan.getStartRow()));
       }
+
+      // 配置变量
       this.scan = scan;
       this.tableName = tableName;
       this.lastNext = System.currentTimeMillis();
       this.connection = connection;
       this.pool = pool;
       this.primaryOperationTimeout = primaryOperationTimeout;
+      // 默认31次
       this.retries = conf.getInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, HConstants.DEFAULT_HBASE_CLIENT_RETRIES_NUMBER);
+      // 返回的大小如果没有设置，则是2MB
       if (scan.getMaxResultSize() > 0) {
         this.maxScannerResultSize = scan.getMaxResultSize();
       } else {
-        this.maxScannerResultSize = conf.getLong(
-          HConstants.HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE_KEY,
-          HConstants.DEFAULT_HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE);
+        this.maxScannerResultSize = conf.getLong(HConstants.HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE_KEY,HConstants.DEFAULT_HBASE_CLIENT_SCANNER_MAX_RESULT_SIZE);
       }
+      // 超时时间 60s
       this.scannerTimeout = HBaseConfiguration.getInt(conf,
         HConstants.HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD,
         HConstants.HBASE_REGIONSERVER_LEASE_PERIOD_KEY,
@@ -146,18 +150,18 @@ public class ClientScanner extends AbstractClientScanner {
       initScanMetrics(scan);
 
       // Use the caching from the Scan.  If not set, use the default cache setting for this table.
+      // 默认缓存最大数量，CDH集群中默认是100，代码中为Integer.MAX_VALUE
       if (this.scan.getCaching() > 0) {
         this.caching = this.scan.getCaching();
       } else {
-        this.caching = conf.getInt(
-            HConstants.HBASE_CLIENT_SCANNER_CACHING,
-            HConstants.DEFAULT_HBASE_CLIENT_SCANNER_CACHING);
+        this.caching = conf.getInt(HConstants.HBASE_CLIENT_SCANNER_CACHING, HConstants.DEFAULT_HBASE_CLIENT_SCANNER_CACHING);
       }
 
       this.caller = rpcFactory.<Result[]> newCaller();
       this.rpcControllerFactory = controllerFactory;
-
       this.conf = conf;
+
+      // 初始化scanner信息
       initializeScannerInConstruction();
     }
 
@@ -247,17 +251,19 @@ public class ClientScanner extends AbstractClientScanner {
       return nextScanner(nbRows, done);
     }
 
-    /*
-     * Gets a scanner for the next region.  If this.currentRegion != null, then
-     * we will move to the endrow of this.currentRegion.  Else we will get
-     * scanner at the scan.getStartRow().  We will go no further, just tidy
-     * up outstanding scanners, if <code>currentRegion != null</code> and
-     * <code>done</code> is true.
+    /**
+     * Gets a scanner for the next region.
+     * If this.currentRegion != null, then we will move to the endrow of this.currentRegion.
+     * Else we will get scanner at the scan.getStartRow().
+     * We will go no further, just tidy up outstanding scanners,
+     * if <code>currentRegion != null</code> and <code>done</code> is true.
+     *
      * @param nbRows
      * @param done Server-side says we're done scanning.
-     */
+     **/
   protected boolean nextScanner(int nbRows, final boolean done) throws IOException {
       // Close the previous scanner if it's open
+      // 如果callable不为空，则关闭 TODO 什么时候为空？什么时候不为空
       if (this.callable != null) {
         this.callable.setClose();
         call(callable, caller, scannerTimeout);
@@ -268,9 +274,10 @@ public class ClientScanner extends AbstractClientScanner {
       byte [] localStartKey;
 
       // if we're at end of table, close and return false to stop iterating
+      // 如果扫到了region的末尾，则停止
       if (this.currentRegion != null) {
         byte [] endKey = this.currentRegion.getEndKey();
-        // 判断当前是否已经到达region的末尾
+        // 判断当前是否已经到达所有region的末尾
         if (endKey == null || Bytes.equals(endKey, HConstants.EMPTY_BYTE_ARRAY) || checkScanStopRow(endKey) || done) {
           close();
           if (LOG.isTraceEnabled()) {
@@ -279,6 +286,7 @@ public class ClientScanner extends AbstractClientScanner {
           return false;
         }
 
+        // 设置startkey为当前的endkey, 前一个region的endkey刚好是下一个region的startkey
         localStartKey = endKey;
         if (LOG.isTraceEnabled()) {
           LOG.trace("Finished " + this.currentRegion);
@@ -294,9 +302,9 @@ public class ClientScanner extends AbstractClientScanner {
       }
       try {
         callable = getScannerCallable(localStartKey, nbRows);
-        // Open a scanner on the region server starting at the
-        // beginning of the region
+        // Open a scanner on the region server starting at the beginning of the region
         call(callable, caller, scannerTimeout);
+        // 获取startkey所在的region
         this.currentRegion = callable.getHRegionInfo();
 
         if (this.scanMetrics != null) {
@@ -560,8 +568,7 @@ public class ClientScanner extends AbstractClientScanner {
    * @return true when the current region has been exhausted. When the current region has been
    *         exhausted, the region must be changed before scanning can continue
    */
-  private boolean doneWithRegion(long remainingResultSize, int remainingRows,
-      boolean regionHasMoreResults) {
+  private boolean doneWithRegion(long remainingResultSize, int remainingRows, boolean regionHasMoreResults) {
     return remainingResultSize > 0 && remainingRows > 0 && !regionHasMoreResults;
   }
 

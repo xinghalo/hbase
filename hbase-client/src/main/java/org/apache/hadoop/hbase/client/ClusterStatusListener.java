@@ -70,8 +70,7 @@ class ClusterStatusListener implements Closeable {
    * The implementation class to use to read the status.
    */
   public static final String STATUS_LISTENER_CLASS = "hbase.status.listener.class";
-  public static final Class<? extends Listener> DEFAULT_STATUS_LISTENER_CLASS =
-      MulticastListener.class;
+  public static final Class<? extends Listener> DEFAULT_STATUS_LISTENER_CLASS = MulticastListener.class;
 
   /**
    * Class to be extended to manage a new dead server.

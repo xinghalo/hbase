@@ -1,41 +1,77 @@
+
 @startuml
+participant HTable
+participant ClientScanner
+participant LinkedList
+participant RpcRetryingCaller
+participant ScannerCallableWithReplicas
+participant ResultBoundedCompletionService
+participant RetryingRPC
+participant ScannerCallable
+
 activate HTable
 group 初始化Scanner
 HTable -> HTable : getScanner
-HTable -> ClientSmallScanner: new
-ClientSmallScanner -> ClientSmallScanner: initializeScannerInConstruction
-ClientSmallScanner -> ClientSmallScanner: nextScanner
-note right: 更新startkey 为查询到的endkey\n获得startkey\n构建ScannerCallable\n构建 ScannerCallableWithReplicas
-ClientSmallScanner -> ClientSmallScanner: getScannerCallable
-ClientSmallScanner -> ScannerCallable: new
-ClientSmallScanner -> ScannerCallableWithReplicas: new
-ClientSmallScanner -> ClientSmallScanner: call
-ClientSmallScanner -> RpcRetryingCaller: callWithoutRetries
+HTable -> ClientScanner: new
+ClientScanner -> ClientScanner: initializeScannerInConstruction
+ClientScanner -> ClientScanner: nextScanner
+note right: 设置startkey为空串，执行第一次call
+ClientScanner -> ClientScanner: getScannerCallable
+ClientScanner -> ScannerCallable: new
+ClientScanner -> ScannerCallableWithReplicas: new
+ClientScanner -> ClientScanner: call
+ClientScanner -> RpcRetryingCaller: callWithoutRetries
+loop 循环重试
+RpcRetryingCaller -> ScannerCallableWithReplicas:prepare()
+RpcRetryingCaller -> ScannerCallableWithReplicas:call
+ScannerCallableWithReplicas -> ResultBoundedCompletionService: new
+ScannerCallableWithReplicas -> ScannerCallableWithReplicas: addCallsForCurrentReplicas
+ResultBoundedCompletionService -> RetryingRPC: new
+ResultBoundedCompletionService -> ResultBoundedCompletionService: submit
+group 多线程同时查询多个副本
+RetryingRPC -> RpcRetryingCaller: callWithoutRetries
+RpcRetryingCaller -> ScannerCallable: prepare
+RpcRetryingCaller -> ScannerCallable: call
+ScannerCallable -> ScannerCallable: openScanner()
+group 构建RPC请求开启远程Scanner
+ScannerCallable -> RequestConverter: buildScanRequest
+ScannerCallable -> BlockingInterface: scan
+BlockingInterface --> ScannerCallable: response
+end
+ScannerCallable --> RpcRetryingCaller: null
+RpcRetryingCaller --> RetryingRPC: null
+end
+
+RetryingRPC --> ScannerCallableWithReplicas: null
+ScannerCallableWithReplicas --> RpcRetryingCaller: null
+ScannerCallableWithReplicas -> ScannerCallableWithReplicas: addCallsForOtherReplicas
+ScannerCallableWithReplicas --> RpcRetryingCaller: null
+
+end
+
 RpcRetryingCaller -> ScannerCallableWithReplicas: prepare
 RpcRetryingCaller -> ScannerCallableWithReplicas: call
 ScannerCallableWithReplicas -> ScannerCallable: call
 ScannerCallable --> ScannerCallableWithReplicas: Result[]
-ScannerCallableWithReplicas --> ClientSmallScanner: Result[]
-ClientSmallScanner --> HTable: Scanner
+ScannerCallableWithReplicas --> ClientScanner: Result[]
+ClientScanner --> HTable: Scanner
 end
 
 
 loop 循环调度获取数据
-HTable -> ClientSmallScanner: next()
-ClientSmallScanner -> ClientSmallScanner: loadCache()
-ClientSmallScanner -> ClientSmallScanner: call 返回results
-ClientSmallScanner -> Scan: setStartRow更新开始的rowkey
-ClientSmallScanner -> ClientSmallScanner: getResultsToAddToCache
-ClientSmallScanner -> LinkedList: add()
-ClientSmallScanner -> ClientSmallScanner: possiblyNextScanner
-ClientSmallScanner -> ClientSmallScanner: nextScanner
-note right: 更新key
-
-ClientSmallScanner -> LinkedList: poll()
-LinkedList --> ClientSmallScanner: Result
-
-
-ClientSmallScanner --> HTable: Result
+HTable -> ClientScanner: next()
+group 如果list为空
+ClientScanner -> ClientScanner: loadCache()
+ClientScanner -> ClientScanner: call()
+ClientScanner -> RpcRetryingCaller: callWithoutRetries
+note right: 继续发起rpc调用，id是上一次初始化的scanid
+RpcRetryingCaller --> ClientScanner: results
+ClientScanner -> ClientScanner: getResultsToAddToCache
+ClientScanner -> LinkedList: add()
+end
+ClientScanner -> LinkedList: poll()
+LinkedList --> ClientScanner: Result
+ClientScanner --> HTable: Result
 deactivate HTable
 end
 

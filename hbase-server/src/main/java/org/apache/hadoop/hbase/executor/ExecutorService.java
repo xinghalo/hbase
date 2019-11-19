@@ -62,12 +62,10 @@ public class ExecutorService {
   private static final Log LOG = LogFactory.getLog(ExecutorService.class);
 
   // hold the all the executors created in a map addressable by their names
-  private final ConcurrentHashMap<String, Executor> executorMap =
-    new ConcurrentHashMap<String, Executor>();
+  private final ConcurrentHashMap<String, Executor> executorMap = new ConcurrentHashMap<String, Executor>();
 
   // listeners that are called before and after an event is processed
-  private ConcurrentHashMap<EventType, EventHandlerListener> eventHandlerListeners =
-    new ConcurrentHashMap<EventType, EventHandlerListener>();
+  private ConcurrentHashMap<EventType, EventHandlerListener> eventHandlerListeners = new ConcurrentHashMap<EventType, EventHandlerListener>();
 
   // Name of the server hosting this executor service.
   private final String servername;

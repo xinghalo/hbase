@@ -492,7 +492,9 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
    * @param csm implementation of CoordinatedStateManager to be used
    */
   public HRegionServer(Configuration conf, CoordinatedStateManager csm) throws IOException, InterruptedException {
+    // 设置线程名称
     super("RegionServer");  // thread name
+
     this.fsOk = true;
     this.conf = conf;
     checkCodecs(this.conf);
@@ -532,15 +534,16 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     String hostName = shouldUseThisHostnameInstead() ? useThisHostnameInstead : rpcServices.isa.getHostName();
     serverName = ServerName.valueOf(hostName, rpcServices.isa.getPort(), startcode);
 
+    // 普通的RPC
     rpcControllerFactory = RpcControllerFactory.instantiate(this.conf);
+    // 支持重试的RPC
     rpcRetryingCallerFactory = RpcRetryingCallerFactory.instantiate(this.conf);
 
     // login the zookeeper client principal (if using security)
     ZKUtil.loginClient(this.conf, HConstants.ZK_CLIENT_KEYTAB_FILE, HConstants.ZK_CLIENT_KERBEROS_PRINCIPAL, hostName);
     // login the server principal (if using secure Hadoop)
     login(userProvider, hostName);
-    // init superusers and add the server principal (if using security)
-    // or process owner as default super user.
+    // init superusers and add the server principal (if using security) or process owner as default super user.
     Superusers.initialize(conf);
 
     regionServerAccounting = new RegionServerAccounting();
@@ -553,14 +556,18 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
 
     useZKForAssignment = ConfigUtil.useZKForAssignment(conf);
 
+    // 初始化文件系统
     initializeFileSystem();
-
+    // HBase线程池
     service = new ExecutorService(getServerName().toShortString());
     spanReceiverHost = SpanReceiverHost.getInstance(getConfiguration());
 
     // Some unit tests don't need a cluster, so no zookeeper at all
+    // TODO 关于zk的使用
     if (!conf.getBoolean("hbase.testing.nocluster", false)) {
+
       // Open connection to zookeeper and set primary watcher
+      // 配置zookeeper的监听器
       zooKeeper = new ZooKeeperWatcher(conf, getProcessName() + ":" +
         rpcServices.isa.getPort(), this, canCreateBaseZNode());
 
@@ -578,11 +585,14 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     }
     this.configurationManager = new ConfigurationManager();
 
-    // 启动rpc服务
+    // 启动rpc服务 TODO 关于RPC消息的处理
     rpcServices.start();
 
     putUpWebUI();
+
+    // wal滚动 TODO 滚动的作用
     this.walRoller = new LogRoller(this, this);
+    // 各种定时服务 TODO 都有什么定时服务
     this.choreService = new ChoreService(getServerName().toString(), true);
 
     if (!SystemUtils.IS_OS_WINDOWS) {
@@ -617,8 +627,7 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
   }
 
   protected void login(UserProvider user, String host) throws IOException {
-    user.login("hbase.regionserver.keytab.file",
-      "hbase.regionserver.kerberos.principal", host);
+    user.login("hbase.regionserver.keytab.file","hbase.regionserver.kerberos.principal", host);
   }
 
   protected void waitForMasterActive(){
@@ -1719,24 +1728,18 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
    */
   private void startServiceThreads() throws IOException {
     // Start executor services
-    this.service.startExecutorService(ExecutorType.RS_OPEN_REGION,
-      conf.getInt("hbase.regionserver.executor.openregion.threads", 3));
-    this.service.startExecutorService(ExecutorType.RS_OPEN_META,
-      conf.getInt("hbase.regionserver.executor.openmeta.threads", 1));
-    this.service.startExecutorService(ExecutorType.RS_CLOSE_REGION,
-      conf.getInt("hbase.regionserver.executor.closeregion.threads", 3));
-    this.service.startExecutorService(ExecutorType.RS_CLOSE_META,
-      conf.getInt("hbase.regionserver.executor.closemeta.threads", 1));
+    this.service.startExecutorService(ExecutorType.RS_OPEN_REGION, conf.getInt("hbase.regionserver.executor.openregion.threads", 3));
+    this.service.startExecutorService(ExecutorType.RS_OPEN_META, conf.getInt("hbase.regionserver.executor.openmeta.threads", 1));
+    this.service.startExecutorService(ExecutorType.RS_CLOSE_REGION, conf.getInt("hbase.regionserver.executor.closeregion.threads", 3));
+    this.service.startExecutorService(ExecutorType.RS_CLOSE_META, conf.getInt("hbase.regionserver.executor.closemeta.threads", 1));
     if (conf.getBoolean(StoreScanner.STORESCANNER_PARALLEL_SEEK_ENABLE, false)) {
-      this.service.startExecutorService(ExecutorType.RS_PARALLEL_SEEK,
-        conf.getInt("hbase.storescanner.parallel.seek.threads", 10));
+      this.service.startExecutorService(ExecutorType.RS_PARALLEL_SEEK,conf.getInt("hbase.storescanner.parallel.seek.threads", 10));
     }
     this.service.startExecutorService(ExecutorType.RS_LOG_REPLAY_OPS, conf.getInt(
        "hbase.regionserver.wal.max.splitters", SplitLogWorkerCoordination.DEFAULT_MAX_SPLITTERS));
 
     if (ServerRegionReplicaUtil.isRegionReplicaWaitForPrimaryFlushEnabled(conf)) {
-      this.service.startExecutorService(ExecutorType.RS_REGION_REPLICA_FLUSH_OPS,
-        conf.getInt("hbase.regionserver.region.replica.flusher.threads",
+      this.service.startExecutorService(ExecutorType.RS_REGION_REPLICA_FLUSH_OPS,conf.getInt("hbase.regionserver.region.replica.flusher.threads",
           conf.getInt("hbase.regionserver.executor.openregion.threads", 3)));
     }
 
@@ -1773,10 +1776,10 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     // quite a while inside HConnection layer. The worker won't be available for other
     // tasks even after current task is preempted after a split task times out.
     Configuration sinkConf = HBaseConfiguration.create(conf);
-    sinkConf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER,
-      conf.getInt("hbase.log.replay.retries.number", 8)); // 8 retries take about 23 seconds
-    sinkConf.setInt(HConstants.HBASE_RPC_TIMEOUT_KEY,
-      conf.getInt("hbase.log.replay.rpc.timeout", 30000)); // default 30 seconds
+    // 8 retries take about 23 seconds
+    sinkConf.setInt(HConstants.HBASE_CLIENT_RETRIES_NUMBER, conf.getInt("hbase.log.replay.retries.number", 8));
+    // default 30 seconds
+    sinkConf.setInt(HConstants.HBASE_RPC_TIMEOUT_KEY, conf.getInt("hbase.log.replay.rpc.timeout", 30000));
     sinkConf.setInt("hbase.client.serverside.retries.multiplier", 1);
     this.splitLogWorker = new SplitLogWorker(this, sinkConf, this, this, walFactory);
     splitLogWorker.start();
@@ -2713,16 +2716,13 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
    * @param conf2
    * @return HRegionServer instance.
    */
-  public static HRegionServer constructRegionServer(
-      Class<? extends HRegionServer> regionServerClass,
+  public static HRegionServer constructRegionServer(Class<? extends HRegionServer> regionServerClass,
       final Configuration conf2, CoordinatedStateManager cp) {
     try {
-      Constructor<? extends HRegionServer> c = regionServerClass
-          .getConstructor(Configuration.class, CoordinatedStateManager.class);
+      Constructor<? extends HRegionServer> c = regionServerClass.getConstructor(Configuration.class, CoordinatedStateManager.class);
       return c.newInstance(conf2, cp);
     } catch (Exception e) {
-      throw new RuntimeException("Failed construction of " + "Regionserver: "
-          + regionServerClass.toString(), e);
+      throw new RuntimeException("Failed construction of " + "Regionserver: " + regionServerClass.toString(), e);
     }
   }
 
@@ -2733,8 +2733,8 @@ public class HRegionServer extends HasThread implements RegionServerServices, La
     VersionInfo.logVersion();
     Configuration conf = HBaseConfiguration.create();
     @SuppressWarnings("unchecked")
-    Class<? extends HRegionServer> regionServerClass = (Class<? extends HRegionServer>) conf
-        .getClass(HConstants.REGION_SERVER_IMPL, HRegionServer.class);
+    Class<? extends HRegionServer> regionServerClass = (Class<? extends HRegionServer>)
+            conf.getClass(HConstants.REGION_SERVER_IMPL, HRegionServer.class);
 
     new HRegionServerCommandLine(regionServerClass).doMain(args);
   }

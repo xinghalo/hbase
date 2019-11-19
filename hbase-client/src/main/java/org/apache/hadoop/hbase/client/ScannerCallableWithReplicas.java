@@ -151,17 +151,21 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     //   So store the last successfully invoked replica
     //2. We should close the "losing" scanners (scanners other than the ones we hear back from first)
 
+    // 获得位置信息
     RegionLocations rl = RpcRetryingCallerWithReadReplicas.getRegionLocations(true,
         RegionReplicaUtil.DEFAULT_REPLICA_ID, cConnection, tableName, currentScannerCallable.getRow());
 
     // allocate a boundedcompletion pool of some multiple of number of replicas.
     // We want to accomodate some RPCs for redundant replica scans (but are still in progress)
+    // 创建服务池，服务池的大小，5*副本数量
     ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs = new ResultBoundedCompletionService<Pair<Result[], ScannerCallable>>(
             RpcRetryingCallerFactory.instantiate(ScannerCallableWithReplicas.this.conf), pool,rl.size() * 5);
 
     AtomicBoolean done = new AtomicBoolean(false);
     replicaSwitched.set(false);
+
     // submit call for the primary replica.
+    // 添加到服务池中
     addCallsForCurrentReplica(cs, rl);
 
     try {
@@ -172,7 +176,8 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
         if (r != null && r.getSecond() != null) {
           updateCurrentlyServingReplica(r.getSecond(), r.getFirst(), done, pool);
         }
-        return r == null ? null : r.getFirst(); //great we got a response
+        //great we got a response
+        return r == null ? null : r.getFirst();
       }
     } catch (ExecutionException e) {
       RpcRetryingCallerWithReadReplicas.throwEnrichedException(e, retries);
@@ -186,6 +191,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
 
     // submit call for the all of the secondaries at once
     // TODO: this may be an overkill for large region replication
+    // 在副本上执行查询
     addCallsForOtherReplicas(cs, rl, 0, rl.size() - 1);
 
     try {
@@ -195,10 +201,10 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
         if (r != null && r.getSecond() != null) {
           updateCurrentlyServingReplica(r.getSecond(), r.getFirst(), done, pool);
         }
-        return r == null ? null : r.getFirst(); // great we got an answer
+        // great we got an answer
+        return r == null ? null : r.getFirst();
       } else {
-        throw new IOException("Failed to get result within timeout, timeout="
-            + timeout + "ms");
+        throw new IOException("Failed to get result within timeout, timeout=" + timeout + "ms");
       }
     } catch (ExecutionException e) {
       RpcRetryingCallerWithReadReplicas.throwEnrichedException(e, retries);
@@ -279,9 +285,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     cs.submit(retryingOnReplica, scannerTimeout, currentScannerCallable.id);
   }
 
-  private void addCallsForOtherReplicas(
-      ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl,
-      int min, int max) {
+  private void addCallsForOtherReplicas(ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl, int min, int max) {
     if (scan.getConsistency() == Consistency.STRONG) {
       return; // not scheduling on other replicas for strong consistency
     }

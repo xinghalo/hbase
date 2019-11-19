@@ -132,9 +132,7 @@ public class ResultBoundedCompletionService<V> {
   }
 
   @SuppressWarnings("unchecked")
-  public ResultBoundedCompletionService(
-      RpcRetryingCallerFactory retryingCallerFactory, Executor executor,
-      int maxTasks) {
+  public ResultBoundedCompletionService(RpcRetryingCallerFactory retryingCallerFactory, Executor executor, int maxTasks) {
     this.retryingCallerFactory = retryingCallerFactory;
     this.executor = executor;
     this.tasks = new QueueingFuture[maxTasks];

@@ -194,8 +194,7 @@ public class RpcRetryingCallerWithReadReplicas {
    * Globally, the number of retries, timeout and so on still applies, but it's per replica,
    * not global. We continue until all retries are done, or all timeouts are exceeded.
    */
-  public synchronized Result call()
-      throws DoNotRetryIOException, InterruptedIOException, RetriesExhaustedException {
+  public synchronized Result call() throws DoNotRetryIOException, InterruptedIOException, RetriesExhaustedException {
     boolean isTargetReplicaSpecified = (get.getReplicaId() >= 0);
 
     RegionLocations rl = getRegionLocations(true, (isTargetReplicaSpecified ? get.getReplicaId()

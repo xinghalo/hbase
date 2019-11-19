@@ -2510,20 +2510,16 @@ public class HMaster extends HRegionServer implements MasterServices, Server {
    * @param conf
    * @return HMaster instance.
    */
-  public static HMaster constructMaster(Class<? extends HMaster> masterClass,
-      final Configuration conf, final CoordinatedStateManager cp)  {
+  public static HMaster constructMaster(Class<? extends HMaster> masterClass, final Configuration conf, final CoordinatedStateManager cp)  {
     try {
-      Constructor<? extends HMaster> c =
-        masterClass.getConstructor(Configuration.class, CoordinatedStateManager.class);
+      Constructor<? extends HMaster> c = masterClass.getConstructor(Configuration.class, CoordinatedStateManager.class);
       return c.newInstance(conf, cp);
     } catch(Exception e) {
       Throwable error = e;
-      if (e instanceof InvocationTargetException &&
-          ((InvocationTargetException)e).getTargetException() != null) {
+      if (e instanceof InvocationTargetException && ((InvocationTargetException)e).getTargetException() != null) {
         error = ((InvocationTargetException)e).getTargetException();
       }
-      throw new RuntimeException("Failed construction of Master: " + masterClass.toString() + ". "
-        , error);
+      throw new RuntimeException("Failed construction of Master: " + masterClass.toString() + ". " , error);
     }
   }
 

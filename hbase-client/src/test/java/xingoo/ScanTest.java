@@ -18,9 +18,9 @@ public class ScanTest {
 
         try(Table table = connection.getTable(TableName.valueOf("rec:user_product_rec"))){
             Scan scan = new Scan();
-            //scan.setCaching(1);
-            scan.setBatch(1); //控制返回的条数
-            //scan.setMaxResultSize(2);
+            scan.setCaching(10); // 控制每次返回的数量
+            scan.setBatch(2); //控制每一行rowkey，返回的列数
+            //scan.setMaxResultSize(2); // 控制返回的内存大小
             ResultScanner scanner4 = table.getScanner(scan);
 
             for (Result res : scanner4) {

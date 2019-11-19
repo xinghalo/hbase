@@ -229,8 +229,7 @@ public class HMasterCommandLine extends ServerCommandLine {
         waitOnMasterThreads(cluster);
       } else {
         logProcessInfo(getConf());
-        CoordinatedStateManager csm =
-          CoordinatedStateManagerFactory.getCoordinatedStateManager(conf);
+        CoordinatedStateManager csm = CoordinatedStateManagerFactory.getCoordinatedStateManager(conf);
         HMaster master = HMaster.constructMaster(masterClass, conf, csm);
         if (master.isStopped()) {
           LOG.info("Won't bring the Master up as a shutdown is requested");

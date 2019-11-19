@@ -56,6 +56,7 @@ import org.apache.hadoop.net.DNS;
 
 import com.google.protobuf.ServiceException;
 import com.google.protobuf.TextFormat;
+import org.mortbay.util.ajax.JSON;
 
 /**
  * Scanner operations such as create, next, etc.
@@ -210,8 +211,12 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
         // Reset the heartbeat flag prior to each RPC in case an exception is thrown by the server
         setHeartbeatMessage(false);
         try {
+          LOG.info(scannerId);
+          LOG.info(new String(scan.getStartRow()));
+
           incRPCcallsMetrics();
           request = RequestConverter.buildScanRequest(scannerId, caching, false, nextCallSeq,this.scanMetrics != null, renew);
+
           ScanResponse response = null;
           controller = controllerFactory.newController();
           controller.setPriority(getTableName());

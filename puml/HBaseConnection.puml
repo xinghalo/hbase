@@ -1,4 +1,8 @@
 @startuml
+title Connection组件
+skinparam roundcorner 20
+skinparam sequenceArrowThickness 2
+
 ==创建Connection==
 ConnectionFactory -> HConnectionImplementation : createConnection(conf)，使用反射实例化
 HConnectionImplementation --> ConnectionFactory: Connection

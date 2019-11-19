@@ -88,9 +88,10 @@ public class RpcRetryingCaller<T> {
     if (callTimeout <= 0) {
       return 0;
     } else {
-      if (callTimeout == Integer.MAX_VALUE) return Integer.MAX_VALUE;
-      int remainingTime = (int) (callTimeout -
-          (EnvironmentEdgeManager.currentTime() - this.globalStartTime));
+      if (callTimeout == Integer.MAX_VALUE){
+        return Integer.MAX_VALUE;
+      }
+      int remainingTime = (int) (callTimeout - (EnvironmentEdgeManager.currentTime() - this.globalStartTime));
       if (remainingTime < MIN_RPC_TIMEOUT) {
         // If there is no time left, we're trying anyway. It's too late.
         // 0 means no timeout, and it's not the intent here. So we secure both cases by
@@ -132,15 +133,10 @@ public class RpcRetryingCaller<T> {
     for (int tries = 0;; tries++) {
       long expectedSleep;
       try {
-        // 执行的核心代码 <---------------------------------------------------------------
-
-        // 只有在第一次加载的时候执行prepare
         callable.prepare(tries != 0);
         // if called with false, check table status on ZK
         interceptor.intercept(context.prepare(callable, tries));
-        // 计算剩余的超时时间
         return callable.call(getTimeout(callTimeout));
-        // 执行的核心代码 <---------------------------------------------------------------
       } catch (PreemptiveFastFailException e) {
         throw e;
       } catch (Throwable t) {
@@ -166,6 +162,8 @@ public class RpcRetryingCaller<T> {
         // If the server is dead, we need to wait a little before retrying, to give
         //  a chance to the regions to be
         // get right pause time, start by RETRY_BACKOFF[0] * pause
+        // pause = 100毫秒
+        // {1, 2, 3, 5, 10, 20, 40, 100, 100, 100, 100, 200, 200};
         expectedSleep = callable.sleep(pause, tries);
 
         // If, after the planned sleep, there won't be enough time left, we stop now.

@@ -924,6 +924,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     RpcSchedulerFactory rpcSchedulerFactory;
     try {
       // 创建服务器周期调度接收rpc
+      // SimpleRpcScheduler
       Class<?> rpcSchedulerFactoryClass = rs.conf.getClass(REGION_SERVER_RPC_SCHEDULER_FACTORY_CLASS, SimpleRpcSchedulerFactory.class);
       rpcSchedulerFactory = ((RpcSchedulerFactory) rpcSchedulerFactoryClass.newInstance());
     } catch (InstantiationException e) {
@@ -942,12 +943,10 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       bindAddress = new InetSocketAddress(rs.conf.get("hbase.master.ipc.address", hostname), port);
     } else {
       String hostname = getHostname(rs.conf, false);
-      int port = rs.conf.getInt(HConstants.REGIONSERVER_PORT,
-        HConstants.DEFAULT_REGIONSERVER_PORT);
+      int port = rs.conf.getInt(HConstants.REGIONSERVER_PORT, HConstants.DEFAULT_REGIONSERVER_PORT);
       // Creation of a HSA will force a resolve.
       initialIsa = new InetSocketAddress(hostname, port);
-      bindAddress = new InetSocketAddress(
-        rs.conf.get("hbase.regionserver.ipc.address", hostname), port);
+      bindAddress = new InetSocketAddress(rs.conf.get("hbase.regionserver.ipc.address", hostname), port);
     }
     if (initialIsa.getAddress() == null) {
       throw new IllegalArgumentException("Failed resolve of " + initialIsa);
@@ -958,30 +957,24 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
     ConnectionUtils.setServerSideHConnectionRetriesConfig(rs.conf, name, LOG);
     try {
       // 创建rpc server，主要是这个getServices()获得处理方法的实现对象
-      rpcServer = new RpcServer(rs, name, getServices(),
-          bindAddress, // use final bindAddress for this server.
-          rs.conf,
-          rpcSchedulerFactory.create(rs.conf, this, rs));
+      // TODO <--------- 核心的RPC服务器
+      // TODO RpcServer是主要的rpc接收器，需要的参数有：rs, service, ip, scheduler
+      rpcServer = new RpcServer(rs, name, getServices(), bindAddress, // use final bindAddress for this server.
+          rs.conf,rpcSchedulerFactory.create(rs.conf, this, rs));
+
       rpcServer.setRsRpcServices(this);
     } catch (BindException be) {
-      String configName = (this instanceof MasterRpcServices) ? HConstants.MASTER_PORT :
-          HConstants.REGIONSERVER_PORT;
+      String configName = (this instanceof MasterRpcServices) ? HConstants.MASTER_PORT : HConstants.REGIONSERVER_PORT;
       throw new IOException(be.getMessage() + ". To switch ports use the '" + configName +
           "' configuration property.", be.getCause() != null ? be.getCause() : be);
     }
-
-    scannerLeaseTimeoutPeriod = rs.conf.getInt(
-      HConstants.HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD,
-      HConstants.DEFAULT_HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD);
-    maxScannerResultSize = rs.conf.getLong(
-      HConstants.HBASE_SERVER_SCANNER_MAX_RESULT_SIZE_KEY,
-      HConstants.DEFAULT_HBASE_SERVER_SCANNER_MAX_RESULT_SIZE);
-    rpcTimeout = rs.conf.getInt(
-      HConstants.HBASE_RPC_TIMEOUT_KEY,
-      HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
-    minimumScanTimeLimitDelta = rs.conf.getLong(
-      REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA,
-      DEFAULT_REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA);
+    // scanner空隙：60s
+    scannerLeaseTimeoutPeriod = rs.conf.getInt(HConstants.HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD, HConstants.DEFAULT_HBASE_CLIENT_SCANNER_TIMEOUT_PERIOD);
+    // 最大数据大小：100M
+    maxScannerResultSize = rs.conf.getLong(HConstants.HBASE_SERVER_SCANNER_MAX_RESULT_SIZE_KEY, HConstants.DEFAULT_HBASE_SERVER_SCANNER_MAX_RESULT_SIZE);
+    // rpc超时：60s
+    rpcTimeout = rs.conf.getInt(HConstants.HBASE_RPC_TIMEOUT_KEY, HConstants.DEFAULT_HBASE_RPC_TIMEOUT);
+    minimumScanTimeLimitDelta = rs.conf.getLong(REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA, DEFAULT_REGION_SERVER_RPC_MINIMUM_SCAN_TIME_LIMIT_DELTA);
 
     InetSocketAddress address = rpcServer.getListenerAddress();
     if (address == null) {
@@ -1119,7 +1112,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
   }
 
   void start() {
-    // TODO scan的id生成器
+    // scan的id生成器
     this.scannerIdGenerator = new ScannerIdGenerator(this.regionServer.serverName);
     rpcServer.start();
   }

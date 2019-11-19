@@ -1,0 +1,12 @@
+@startuml
+HMaster -> HMaster: main
+HMaster -> HMasterCommandLine: new
+HMasterCommandLine --> HMaster: HMasterCommandLine
+HMaster -> HMasterCommandLine: doMain
+HMasterCommandLine -> ToolRunner: run
+ToolRunner -> HMasterCommandLine: run
+HMasterCommandLine -> HMasterCommandLine: startMaster
+HMasterCommandLine -> HMaster: new
+HMasterCommandLine -> HMaster: start
+HMasterCommandLine -> HMaster: join
+@enduml

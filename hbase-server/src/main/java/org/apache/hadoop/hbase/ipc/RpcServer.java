@@ -743,8 +743,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
 
     @Override
     @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="IS2_INCONSISTENT_SYNC",
-      justification="selector access is not synchronized; seems fine but concerned changing " +
-        "it will have per impact")
+      justification="selector access is not synchronized; seems fine but concerned changing " + "it will have per impact")
     public void run() {
       LOG.info(getName() + ": starting");
       while (running) {
@@ -1707,8 +1706,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
         //Now we check if this is a proxy user case. If the protocol user is
         //different from the 'user', it is a proxy user scenario. However,
         //this is not allowed if user authenticated with DIGEST.
-        if ((protocolUser != null)
-            && (!protocolUser.getUserName().equals(ugi.getUserName()))) {
+        if ((protocolUser != null) && (!protocolUser.getUserName().equals(ugi.getUserName()))) {
           if (authMethod == AuthMethod.DIGEST) {
             // Not allowed to doAs if token authentication is used
             throw new AccessDeniedException("Authenticated user (" + ugi
@@ -1719,8 +1717,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
             // for simple auth or kerberos auth
             // The user is the real user. Now we create a proxy user
             UserGroupInformation realUser = ugi;
-            ugi = UserGroupInformation.createProxyUser(protocolUser
-                .getUserName(), realUser);
+            ugi = UserGroupInformation.createProxyUser(protocolUser.getUserName(), realUser);
             // Now the user is a proxy user, set Authentication method Proxy.
             ugi.setAuthenticationMethod(AuthenticationMethod.PROXY);
           }
@@ -1734,8 +1731,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
             + " with version info: "
             + TextFormat.shortDebugString(connectionHeader.getVersionInfo()));
       } else {
-        AUDITLOG.info("Connection from " + this.hostAddress + " port: " + this.remotePort
-            + " with unknown version info");
+        AUDITLOG.info("Connection from " + this.hostAddress + " port: " + this.remotePort + " with unknown version info");
       }
 
 
@@ -1908,7 +1904,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
 
       TraceInfo traceInfo = header.hasTraceInfo()? new TraceInfo(header.getTraceInfo().getTraceId(), header.getTraceInfo().getParentId()): null;
 
-      // 创建Call
+      // 创建Call TODO <----- 这里这里这里！！
       Call call = new Call(id, this.service, md, header, param, cellScanner, this, responder, totalRequestSize, traceInfo, this.addr);
 
       // 交由scheduler调度执行
@@ -2043,8 +2039,7 @@ public class RpcServer implements RpcServerInterface, ConfigurationObserver {
           conf.getInt("hbase.ipc.server.reservoir.initial.buffer.size", 16 * 1024),
           // Make the max twice the number of handlers to be safe.
           conf.getInt("hbase.ipc.server.reservoir.initial.max",
-              conf.getInt(HConstants.REGION_SERVER_HANDLER_COUNT,
-                  HConstants.DEFAULT_REGION_SERVER_HANDLER_COUNT) * 2));
+              conf.getInt(HConstants.REGION_SERVER_HANDLER_COUNT, HConstants.DEFAULT_REGION_SERVER_HANDLER_COUNT) * 2));
     } else {
       reservoir = null;
     }
