@@ -1,0 +1,13 @@
+@startuml
+title Socket
+
+class NetworkInterface{
+- String name
+- String display
+- INetAddress addrs
+- InterfaceAddress bindings
+}
+
+
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml
+title NIO
+
+skinparam roundcorner 20
+skinparam sequenceArrowThickness 2
+
+interface Comparable
+
+package "java.nio" {
+class Buffer{
++ int capacity
++ int limit
++ int position
++ int mark
+
++ void flip()
++ void clear()
++ void reset()
++ void rewind()
+}
+
+class ByteBuffer {
+ + void wrap(byte[])
+ + void allocate()
+}
+
+Comparable <-- Buffer
+
+Buffer <|-- CharBuffer
+Buffer <|-- ByteBuffer
+
+ByteBuffer <|-- DirectByteBuffer
+ByteBuffer <|-- HeapByteBuffer
+}
+@enduml
